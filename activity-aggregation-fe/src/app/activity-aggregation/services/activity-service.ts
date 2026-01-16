@@ -2,14 +2,14 @@ import { inject, Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { AggregatedData } from '../model/Activity.model';
 import { HttpClient, HttpParams } from '@angular/common/http';
-
+import { API_ENDPOINTS } from '../constants/activity-aggregation.constants'
 @Injectable({
   providedIn: 'root',
 })
 export class ActivityService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:8080/api/activities'; // Adjust port as needed
-  
+  private apiUrl = API_ENDPOINTS.activities;  
+
   getAggregatedActivities(groupBy: string[]): Observable<AggregatedData[]> {
     let params = new HttpParams();
     if (groupBy.length > 0) {
