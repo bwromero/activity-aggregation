@@ -1,13 +1,15 @@
 import { Component, OnInit, signal, computed, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AggregatedData, GroupBy } from './model/Activity.model';
+import { AggregatedData } from './model/Activity.model';
 import { ActivityService } from './services/activity-service';
 import { MatTableModule } from '@angular/material/table';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+
+type GroupByField = 'project' | 'employee' | 'date';
 
 @Component({
   selector: 'app-activity-aggregation',
@@ -31,31 +33,25 @@ export class ActivityAggregationComponent implements OnInit {
   loading = signal(false);
   error = signal<string | null>(null);
 
-  groupBy = signal<GroupBy>({
-    project: false,
-    employee: false,
-    date: false
-  });
+  selectedFields = signal<GroupByField[]>([]);
+
+  isSelected = (field: GroupByField) => {
+    return computed(() => this.selectedFields().includes(field));
+  };
 
   displayedColumns = computed(() => {
-    const columns: string[] = [];
-    const grouping = this.groupBy();
+    const selected = this.selectedFields();
     
-    if (!grouping.project && !grouping.employee && !grouping.date) {
+    if (selected.length === 0) {
       return ['project', 'employee', 'date', 'hours'];
     }
     
-    if (grouping.project) columns.push('project');
-    if (grouping.employee) columns.push('employee');
-    if (grouping.date) columns.push('date');
-    columns.push('hours');
-    
-    return columns;
+    return [...selected, 'hours'];
   });
 
   constructor() {
     effect(() => {
-      this.groupBy();
+      this.selectedFields();
       this.loadData();
     });
   }
@@ -63,23 +59,25 @@ export class ActivityAggregationComponent implements OnInit {
   ngOnInit() {
   }
 
-  toggleGroup(field: keyof GroupBy) {
-    this.groupBy.update(current => ({
-      ...current,
-      [field]: !current[field]
-    }));
+  toggleGroup(field: GroupByField) {
+    this.selectedFields.update(current => {
+      if (current.includes(field)) {
+        return current.filter(f => f !== field);
+      } else {
+        return [...current, field];
+      }
+    });
   }
+
+  isProjectSelected = computed(() => this.selectedFields().includes('project'));
+  isEmployeeSelected = computed(() => this.selectedFields().includes('employee'));
+  isDateSelected = computed(() => this.selectedFields().includes('date'));
 
   loadData() {
     this.loading.set(true);
     this.error.set(null);
 
-    const grouping = this.groupBy();
-    const groupByFields: string[] = [];
-    
-    if (grouping.project) groupByFields.push('project');
-    if (grouping.employee) groupByFields.push('employee');
-    if (grouping.date) groupByFields.push('date');
+    const groupByFields = this.selectedFields();
 
     this.activityService.getAggregatedActivities(groupByFields).subscribe({
       next: (data) => {
