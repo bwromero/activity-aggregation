@@ -5,7 +5,6 @@
       </mat-card-header>
   
       <mat-card-content>
-        <!-- Aggregation Options -->
         <div class="aggregation-options">
           <mat-checkbox
             [checked]="groupBy().project"
@@ -28,72 +27,59 @@
             Group by Date
           </mat-checkbox>
         </div>
-  
-        <!-- Load Button -->
-        <div class="actions">
-          <button mat-raised-button color="primary" (click)="loadData()" [disabled]="loading()">
-            {{ loading() ? 'Loading...' : 'Load Data' }}
-          </button>
-        </div>
-        
-  
-        <!-- Loading Spinner -->
+
         @if (loading()) {
           <div class="loading">
             <mat-spinner diameter="50"></mat-spinner>
           </div>
         }
-  
-        <!-- Error Message -->
+
         @if (error()) {
           <div class="error">
             {{ error() }}
           </div>
         }
-  
+
         <!-- Data Table -->
         @if (!loading() && !error() && data().length > 0) {
           <div class="table-container">
             <table mat-table [dataSource]="data()" class="activity-table">
               <!-- Project Column -->
-              @if (groupBy().project) {
+              @if (displayedColumns().includes('project')) {
                 <ng-container matColumnDef="project">
                   <th mat-header-cell *matHeaderCellDef>Project</th>
                   <td mat-cell *matCellDef="let element">{{ element.project }}</td>
                 </ng-container>
               }
-  
-              <!-- Employee Column -->
-              @if (groupBy().employee) {
+
+              @if (displayedColumns().includes('employee')) {
                 <ng-container matColumnDef="employee">
                   <th mat-header-cell *matHeaderCellDef>Employee</th>
                   <td mat-cell *matCellDef="let element">{{ element.employee }}</td>
                 </ng-container>
               }
-  
-              <!-- Date Column -->
-              @if (groupBy().date) {
+
+              @if (displayedColumns().includes('date')) {
                 <ng-container matColumnDef="date">
                   <th mat-header-cell *matHeaderCellDef>Date</th>
                   <td mat-cell *matCellDef="let element">{{ element.date | date: 'dd MMM yyyy' }}</td>
                 </ng-container>
               }
-  
-              <!-- Hours Column -->
+
               <ng-container matColumnDef="hours">
                 <th mat-header-cell *matHeaderCellDef>Hours</th>
                 <td mat-cell *matCellDef="let element" class="hours-cell">{{ element.hours }}</td>
               </ng-container>
-  
+
               <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>
               <tr mat-row *matRowDef="let row; columns: displayedColumns()"></tr>
             </table>
           </div>
         }
-  
+
         @if (!loading() && !error() && data().length === 0) {
           <div class="no-data">
-            No data available. Click "Load Data" to fetch activities.
+            No data available.
           </div>
         }
       </mat-card-content>

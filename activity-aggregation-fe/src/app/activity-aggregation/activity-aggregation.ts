@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, signal, computed, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AggregatedData, GroupBy } from './model/Activity.model';
@@ -27,22 +27,23 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 export class ActivityAggregationComponent implements OnInit {
   private activityService = inject(ActivityService);
 
-  // State signals
   data = signal<AggregatedData[]>([]);
   loading = signal(false);
   error = signal<string | null>(null);
 
-  // Grouping options
   groupBy = signal<GroupBy>({
     project: false,
     employee: false,
     date: false
   });
 
-  // Computed columns based on selected grouping
   displayedColumns = computed(() => {
     const columns: string[] = [];
     const grouping = this.groupBy();
+    
+    if (!grouping.project && !grouping.employee && !grouping.date) {
+      return ['project', 'employee', 'date', 'hours'];
+    }
     
     if (grouping.project) columns.push('project');
     if (grouping.employee) columns.push('employee');
@@ -52,8 +53,14 @@ export class ActivityAggregationComponent implements OnInit {
     return columns;
   });
 
+  constructor() {
+    effect(() => {
+      this.groupBy();
+      this.loadData();
+    });
+  }
+
   ngOnInit() {
-    this.loadData();
   }
 
   toggleGroup(field: keyof GroupBy) {
@@ -76,6 +83,7 @@ export class ActivityAggregationComponent implements OnInit {
 
     this.activityService.getAggregatedActivities(groupByFields).subscribe({
       next: (data) => {
+        console.log('Data received:', data); 
         this.data.set(data);
         this.loading.set(false);
       },
