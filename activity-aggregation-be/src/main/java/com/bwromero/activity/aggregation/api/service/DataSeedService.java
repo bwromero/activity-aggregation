@@ -28,13 +28,47 @@ public class DataSeedService {
     private final EntityManager entityManager;
 
     @Transactional
-    public void resetAndSeedDatabase(int totalRows, int batchSize) {
+    public void resetAndSeedDatabase(int totalRows, int batchSize, boolean useDemoData) {
         log.info("Cleaning database...");
         entityManager.createNativeQuery("TRUNCATE TABLE activity, project, employee RESTART IDENTITY CASCADE").executeUpdate();
 
-        List<Project> projects = seedProjects(20);
-        List<Employee> employees = seedEmployees(50);
-        seedActivities(projects, employees, totalRows, batchSize);
+        if (useDemoData) {
+            seedHumanDemoData();
+        } else {
+            List<Project> projects = seedProjects(20);
+            List<Employee> employees = seedEmployees(50);
+            seedActivities(projects, employees, totalRows, batchSize);
+        }
+    }
+
+    private void seedHumanDemoData() {
+        log.info("Seeding human-readable demo data from challenge...");
+        
+        // Projects
+        Project marsRover = projRepo.save(new Project(null, "Mars Rover"));
+        Project manhattan = projRepo.save(new Project(null, "Manhattan"));
+
+        // Employees
+        Employee mario = empRepo.save(new Employee(null, "Mario"));
+        Employee giovanni = empRepo.save(new Employee(null, "Giovanni"));
+        Employee lucia = empRepo.save(new Employee(null, "Lucia"));
+
+        // Use fixed dates from the PDF (Aug/Sep 2021)
+        ZonedDateTime aug27 = ZonedDateTime.parse("2021-08-27T10:00:00Z");
+        ZonedDateTime aug31 = ZonedDateTime.parse("2021-08-31T10:00:00Z");
+        ZonedDateTime sep01 = ZonedDateTime.parse("2021-09-01T10:00:00Z");
+
+        List<Activity> demoActivities = List.of(
+            new Activity(null, marsRover, mario, aug27, 5),
+            new Activity(null, manhattan, giovanni, aug31, 3),
+            new Activity(null, marsRover, mario, sep01, 3),
+            new Activity(null, marsRover, lucia, sep01, 3),
+            new Activity(null, manhattan, mario, aug27, 2),
+            new Activity(null, manhattan, giovanni, sep01, 4)
+        );
+
+        actRepo.saveAll(demoActivities);
+        log.info("Demo data seed complete!");
     }
 
     private List<Project> seedProjects(int count) {
