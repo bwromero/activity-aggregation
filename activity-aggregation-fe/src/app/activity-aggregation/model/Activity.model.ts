@@ -17,9 +17,3 @@ export interface Activity {
     date?: string;
     hours: number;
   }
-  
-  export interface GroupBy {
-    project: boolean;
-    employee: boolean;
-    date: boolean;
-  }

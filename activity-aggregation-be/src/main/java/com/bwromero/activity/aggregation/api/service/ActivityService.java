@@ -25,10 +25,10 @@ public class ActivityService {
         if (groupBy == null || groupBy.isEmpty()) {
             return allActivities.stream().map(a -> {
                 Map<String, Object> map = new LinkedHashMap<>();
-                map.put("Project", a.getProject().getName());
-                map.put("Employee", a.getEmployee().getName());
-                map.put("Date", a.getDate().toLocalDate().toString());
-                map.put("Hours", a.getHours());
+                map.put("project", a.getProject().getName());
+                map.put("employee", a.getEmployee().getName());
+                map.put("date", a.getDate().toLocalDate().toString());
+                map.put("hours", a.getHours());
                 return map;
             }).collect(Collectors.toList());
         }
@@ -57,11 +57,10 @@ public class ActivityService {
             Map<String, Object> row = new LinkedHashMap<>();
             List<Object> keyValues = entry.getKey();
             for (int i = 0; i < groupBy.size(); i++) {
-                String field = groupBy.get(i);
-                String displayName = field.substring(0, 1).toUpperCase() + field.substring(1).toLowerCase();
-                row.put(displayName, keyValues.get(i));
+                String field = groupBy.get(i).toLowerCase();
+                row.put(field, keyValues.get(i));
             }
-            row.put("Hours", entry.getValue());
+            row.put("hours", entry.getValue());
             result.add(row);
         }
 
