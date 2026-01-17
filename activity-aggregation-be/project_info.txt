@@ -1,0 +1,93 @@
+### Project: Activity Aggregation API
+
+This project is a high-performance Spring Boot backend designed to handle dynamic multi-level aggregation of activities (time tracking data). It was developed as a solution to a technical challenge requiring flexible grouping by project, employee, and date.
+
+---
+
+### 1. Architectural Decisions
+
+*   **Layered Architecture:** Follows the standard Controller-Service-Repository pattern for clear separation of concerns.
+*   **Dynamic Query Generation (QueryDSL):** 
+    *   Used QueryDSL instead of standard JPQL or Criteria API. This allows for type-safe, fluent query building which is essential for dynamic `GROUP BY` and `ORDER BY` clauses based on user input.
+    *   **Repository Custom Implementation:** Leveraged Spring Data JPA's `Fragment` pattern (`ActivityRepositoryCustom`) to separate complex dynamic query logic from standard CRUD operations.
+*   **Performance Optimization:**
+    *   **Database Indexing:** Created composite indexes on `project_id`, `employee_id`, and `date` to ensure that aggregated queries remain fast even with large datasets.
+    *   **Projection directly to DTO:** Used QueryDSL Projections to fetch only required fields from the database, reducing memory overhead and improving speed.
+    *   **Caching:** Implemented `Caffeine` cache in the Service layer to store frequently accessed aggregation results, significantly reducing database load for repeated requests.
+    *   **Batch Seeding:** The `DataSeedService` uses batching and `EntityManager` clearing to efficiently insert hundreds of thousands of rows without memory issues.
+*   **SQL Compatibility:** Used `Expressions.dateTimeTemplate` to handle date truncation (`CAST AS DATE`) in a way that is compatible with PostgreSQL and H2.
+
+---
+
+### 2. Design Patterns Implemented
+
+*   **Controller-Service-Repository:** The fundamental layered architecture for separation of concerns.
+*   **Data Transfer Object (DTO):** Used `ActivityResponse` (Java 16+ Record) to decouple the API response structure from the internal database models.
+*   **Repository Custom Implementation (Fragment Pattern):** Extending standard Spring Data repositories with custom QueryDSL logic via `ActivityRepositoryCustom` and `ActivityRepositoryImpl`.
+*   **Utility Class Pattern:** `ActivityQuerySupport` uses Lombok's `@UtilityClass` to house reusable, stateless query building logic.
+*   **Builder Pattern:** Utilized Lombok's `@Builder` on the `Activity` entity for clean and readable object construction, especially useful during data seeding.
+*   **Template Method / Strategy (Implicit):** The dynamic query building logic essentially acts as a strategy for different grouping and sorting combinations.
+
+---
+
+### 3. Data Model & Entity Mapping
+
+The database schema is designed with normalized tables and clear relationships:
+
+*   **Project Entity (`project` table):**
+    *   `id` (BigInt, Identity PK)
+    *   `name` (String)
+*   **Employee Entity (`employee` table):**
+    *   `id` (BigInt, Identity PK)
+    *   `name` (String)
+*   **Activity Entity (`activity` table):**
+    *   `id` (BigInt, Identity PK)
+    *   `project_id` (FK to Project): **Many-to-One** relationship.
+    *   `employee_id` (FK to Employee): **Many-to-One** relationship.
+    *   `date` (Timestamp with Time Zone): Stores the specific moment of the activity.
+    *   `hours` (Integer): The amount of time spent.
+
+**Relationships:**
+*   An **Activity** belongs to exactly one **Project** and one **Employee**.
+*   A **Project** or **Employee** can have many associated **Activities**.
+*   **Index Optimization:** A composite index `idx_activity_agg` was created on `(project_id, employee_id, date)` to specifically optimize the `GROUP BY` operations required by the challenge.
+
+---
+
+### 4. Key Dependencies
+
+*   **Spring Boot 3.x:** The core framework (Web, Data JPA).
+*   **QueryDSL (Jakarta):** For type-safe dynamic query construction.
+*   **PostgreSQL:** The production-grade database chosen for its robust support for complex aggregations and indexing.
+*   **H2 Database:** Used for local development and integration testing.
+*   **Caffeine Cache:** A high-performance local cache provider.
+*   **Lombok:** To reduce boilerplate code (Getters, Setters, Builders, Logging).
+*   **Spring Data JPA:** For seamless repository management.
+
+---
+
+### 5. Core Features & "Natural Order" Logic
+
+One of the highlights of this project is the implementation of **"Natural Order"** sorting. When no explicit sort is provided, the API sorts by:
+1.  The order of the grouping fields requested (e.g., if grouping by Project then Employee, it respects that hierarchy).
+2.  The insertion/creation order of the entities (using `MIN(id)`), ensuring that the first projects and employees created appear first, matching the requirement of a "natural" flow.
+3.  Secondary sorting by total hours (descending) within the groups.
+
+---
+
+### 6. Edge Cases Handled
+
+*   **Empty Grouping:** If no `groupBy` fields are provided, the API returns a "flattened" view of all activities, effectively treating it as a standard list but maintaining strict SQL compatibility for the grouping logic.
+*   **Dynamic Sorting:** The system supports sorting by aggregated fields (like `hours`) or grouping fields (like `project`, `employee`, `date`) interchangeably.
+*   **Case Sensitivity:** All input parameters for grouping and sorting are normalized to lowercase to prevent 400 errors due to typos or UI variations.
+*   **Pagination on Aggregates:** Correctly calculates the total count of *groups* (not just rows) to provide accurate pagination metadata (`totalPages`, `totalElements`).
+*   **Date Truncation:** Correctly handles `ZonedDateTime` by casting it to a simple `Date` at the database level for grouping, ensuring activities on the same day but different times are merged.
+
+---
+
+### 7. Talking Points for Recruiters
+
+*   "I chose QueryDSL because the requirement for dynamic multi-level aggregation is difficult to maintain with string-concatenated SQL or even JPA Criteria."
+*   "To ensure the system could scale to 100k+ rows as requested, I implemented composite indexes and optimized the data seeding process with batching."
+*   "I integrated Caffeine cache because aggregation queries are computationally expensive; caching these results provides a sub-millisecond response time for common reports."
+*   "The backend is designed to be fully compatible with an Angular frontend, using standard Pageable objects for seamless pagination and sorting integration."
