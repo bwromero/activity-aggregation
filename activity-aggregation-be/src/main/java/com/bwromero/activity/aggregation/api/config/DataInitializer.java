@@ -27,6 +27,11 @@ public class DataInitializer {
     CommandLineRunner initDatabase(ActivityRepository actRepo, ProjectRepository projRepo, EmployeeRepository empRepo) {
         return args -> {
             // 1. Create a pool of Projects and Employees first
+            if (projRepo.count() > 0) {
+                System.out.println("Data already initialized. Skipping...");
+                return;
+            }
+
             List<Project> projects = new ArrayList<>();
             for (int i = 1; i <= 20; i++) {
                 projects.add(projRepo.save(new Project(null, "Project " + i)));
