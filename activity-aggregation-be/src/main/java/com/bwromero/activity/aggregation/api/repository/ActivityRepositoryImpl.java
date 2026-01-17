@@ -8,7 +8,6 @@ import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.Expressions;
-import com.querydsl.core.types.dsl.PathBuilder;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
@@ -16,7 +15,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -30,88 +31,95 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom {
         JPAQueryFactory queryFactory = new JPAQueryFactory(entityManager);
         QActivity activity = QActivity.activity;
 
-        Set<String> groupsSet = normalizeGroups(groupBy);
-        boolean noGrouping = groupsSet.isEmpty();
-        List<Expression<?>> groupList = buildGroupList(activity, groupsSet);
+        // 1. Define a mapping between Request Strings and the actual QueryDSL Path instances.
+        // This ensures the EXACT SAME object is used in SELECT, GROUP BY, and ORDER BY.
+        Map<String, Expression<?>> pathMap = Map.of(
+                "project", activity.project.name,
+                "employee", activity.employee.name,
+                "date", activity.date
+        );
+
+        Set<String> activeGroups = (groupBy == null) ? Collections.emptySet() :
+                groupBy.stream().map(String::toLowerCase).collect(Collectors.toSet());
+
+        // 2. Build dynamic Group List based on mapping
+        List<Expression<?>> groupExpressions = activeGroups.stream()
+                .filter(pathMap::containsKey)
+                .map(pathMap::get)
+                .collect(Collectors.toList());
+
+        // 3. Define Projections based on the group context
+        // If no grouping is requested, we show all data (flattened view).
+        boolean showAll = activeGroups.isEmpty();
+        Expression<String> projectExpr = (showAll || activeGroups.contains("project")) ? activity.project.name : Expressions.nullExpression(String.class);
+        Expression<String> employeeExpr = (showAll || activeGroups.contains("employee")) ? activity.employee.name : Expressions.nullExpression(String.class);
+        Expression<ZonedDateTime> dateExpr = (showAll || activeGroups.contains("date")) ? activity.date : Expressions.nullExpression(ZonedDateTime.class);
 
         JPAQuery<ActivityResponse> query = queryFactory
                 .select(Projections.constructor(ActivityResponse.class,
-                        (noGrouping || groupsSet.contains("project")) ? activity.project.name : Expressions.nullExpression(String.class),
-                        (noGrouping || groupsSet.contains("employee")) ? activity.employee.name : Expressions.nullExpression(String.class),
-                        (noGrouping || groupsSet.contains("date")) ? activity.date.stringValue() : Expressions.nullExpression(String.class),
+                        projectExpr,
+                        employeeExpr,
+                        dateExpr,
                         activity.hours.sum().castToNum(Integer.class)
                 ))
                 .from(activity);
 
-        applyGrouping(query, activity, noGrouping, groupList);
-        applySorting(query, activity, pageable, groupBy, noGrouping);
+        // 4. Apply Grouping
+        if (!groupExpressions.isEmpty()) {
+            query.groupBy(groupExpressions.toArray(new Expression[0]));
+        } else {
+            // Default "Flattened" view grouping - includes the date path directly
+            query.groupBy(activity.id, activity.project.name, activity.employee.name, activity.date);
+        }
+
+        // 5. Apply Sorting (Type-Safe and Group-Aware)
+        applyModernSorting(query, activity, pageable, pathMap, groupExpressions);
 
         List<ActivityResponse> content = query
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();
 
-        long total = calculateTotal(queryFactory, activity, noGrouping, groupList);
-
-        return new PageImpl<>(content, pageable, total);
+        return new PageImpl<>(content, pageable, calculateTotal(queryFactory, activity, groupExpressions));
     }
 
-    private Set<String> normalizeGroups(List<String> groupBy) {
-        if (groupBy == null) return Collections.emptySet();
-        return groupBy.stream().map(String::toLowerCase).collect(Collectors.toSet());
-    }
+    private void applyModernSorting(JPAQuery<?> query, QActivity activity, Pageable pageable,
+                                    Map<String, Expression<?>> pathMap, List<Expression<?>> groupExpressions) {
+        Sort sort = pageable.getSort();
+        if (sort.isSorted()) {
+            for (Sort.Order order : sort) {
+                String prop = order.getProperty().toLowerCase();
+                Order direction = order.isAscending() ? Order.ASC : Order.DESC;
 
-    private List<Expression<?>> buildGroupList(QActivity activity, Set<String> groupsSet) {
-        List<Expression<?>> groupList = new ArrayList<>();
-        if (groupsSet.contains("project")) groupList.add(activity.project.name);
-        if (groupsSet.contains("employee")) groupList.add(activity.employee.name);
-        if (groupsSet.contains("date")) groupList.add(activity.date);
-        return groupList;
-    }
-
-    private void applyGrouping(JPAQuery<?> query, QActivity activity, boolean noGrouping, List<Expression<?>> groupList) {
-        if (!noGrouping) {
-            query.groupBy(groupList.toArray(new Expression[0]));
-        } else {
-            query.groupBy(activity.id, activity.project.name, activity.employee.name, activity.date);
-        }
-    }
-
-    private void applySorting(JPAQuery<?> query, QActivity activity, Pageable pageable, List<String> originalGroups, boolean noGrouping) {
-        if (pageable.getSort().isSorted()) {
-            pageable.getSort().forEach(order -> {
-                if (order.getProperty().equalsIgnoreCase("hours")) {
-                    query.orderBy(new OrderSpecifier(order.isAscending() ? Order.ASC : Order.DESC, activity.hours.sum()));
-                } else {
-                    PathBuilder<Activity> entityPath = new PathBuilder<>(Activity.class, "activity");
-                    String prop = order.getProperty();
-                    if (prop.equals("project")) prop = "project.name";
-                    if (prop.equals("employee")) prop = "employee.name";
-                    query.orderBy(new OrderSpecifier(order.isAscending() ? Order.ASC : Order.DESC, entityPath.get(prop)));
-                }
-            });
-        } else if (!noGrouping) {
-            if (originalGroups != null) {
-                for (String group : originalGroups) {
-                    String field = group.toLowerCase();
-                    if (field.equals("project")) query.orderBy(activity.project.name.asc());
-                    else if (field.equals("employee")) query.orderBy(activity.employee.name.asc());
-                    else if (field.equals("date")) query.orderBy(activity.date.asc());
+                if (prop.equals("hours")) {
+                    query.orderBy(new OrderSpecifier<>(direction, activity.hours.sum()));
+                } else if (pathMap.containsKey(prop)) {
+                    Expression<?> path = pathMap.get(prop);
+                    // Standard SQL Rule: Cannot sort by a column that is not grouped or aggregated
+                    if (groupExpressions.isEmpty() || groupExpressions.contains(path)) {
+                        query.orderBy(new OrderSpecifier(direction, path));
+                    }
                 }
             }
         } else {
-            query.orderBy(activity.date.desc());
+            // Default Sort: Sort by the first grouping column, or date desc for flat lists
+            if (!groupExpressions.isEmpty()) {
+                query.orderBy(new OrderSpecifier(Order.ASC, groupExpressions.get(0)));
+            } else {
+                query.orderBy(activity.date.desc());
+            }
         }
     }
 
-    private long calculateTotal(JPAQueryFactory queryFactory, QActivity activity, boolean noGrouping, List<Expression<?>> groupList) {
-        if (noGrouping) {
+    private long calculateTotal(JPAQueryFactory queryFactory, QActivity activity, List<Expression<?>> groupExpressions) {
+        if (groupExpressions.isEmpty()) {
             return queryFactory.select(activity.count()).from(activity).fetchOne();
         }
+        // Size of the result set of the grouped query
         return queryFactory
                 .select(activity.id.count())
                 .from(activity)
-                .groupBy(groupList.toArray(new Expression[0]))
+                .groupBy(groupExpressions.toArray(new Expression[0]))
                 .fetch().size();
     }
 }
