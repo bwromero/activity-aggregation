@@ -32,9 +32,6 @@ export class ActivityAggregationComponent {
   protected readonly UI_CONFIG = UI_CONFIG;
   protected readonly Math = Math; // For template calculations
 
-  /**
-   * Handle pagination events from MatPaginator
-   */
   onPageChange(event: PageEvent): void {
     this.service.handlePageEvent(event);
   }
