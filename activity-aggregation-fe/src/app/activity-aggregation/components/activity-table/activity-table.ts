@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { ACTIVITY_FIELDS, ActivityField, COLUMN_CONFIGS } from '../../constants/activity-aggregation';
 import { AggregatedData } from '../../models/aggregated-data.model';
 import { MatTableModule } from '@angular/material/table';
@@ -9,6 +9,7 @@ import { DatePipe } from '@angular/common';
   imports: [MatTableModule, DatePipe],
   templateUrl: './activity-table.html',
   styleUrl: './activity-table.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush 
 })
 export class ActivityTableComponent {
   protected readonly ACTIVITY_FIELDS = ACTIVITY_FIELDS;
