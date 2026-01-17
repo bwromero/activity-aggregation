@@ -83,16 +83,16 @@ public class ActivityService {
         // 3. Robust Total Count
         long total;
         if (noGrouping) {
-            // If we aren't grouping, the total is just the total number of records
             total = repository.count();
         } else {
-            // When grouping, the total is the number of resulting groups.
-            // We count how many unique combinations of the group fields exist.
+            // To get the number of groups without HHH000247 or PostgreSQL errors:
+            // We create a separate query that only groups and counts.
             total = queryFactory
-                    .select(activity.id.count()) 
+                    .select(activity.id.count()) // This acts as a placeholder
                     .from(activity)
                     .groupBy(groupList.toArray(new Expression[0]))
-                    .fetch().size();
+                    .fetch()
+                    .size(); // size() here is safe because it only fetches the group keys
         }
 
         return new PageImpl<>(content, pageable, total);
