@@ -55,7 +55,7 @@ public class ActivityQuerySupport {
         }
     }
 
-    public static void applySorting(JPAQuery<?> query, QActivity activity, Sort sort, 
+    public static void applySorting(JPAQuery<?> query, QActivity activity, Sort sort,
                                     Map<String, Expression<?>> pathMap, List<Expression<?>> groups) {
         if (sort.isSorted()) {
             for (Sort.Order order : sort) {
@@ -66,7 +66,7 @@ public class ActivityQuerySupport {
         }
     }
 
-    private static void applySingleSort(JPAQuery<?> query, QActivity activity, Sort.Order order, 
+    private static void applySingleSort(JPAQuery<?> query, QActivity activity, Sort.Order order,
                                         Map<String, Expression<?>> pathMap, List<Expression<?>> groups) {
         String prop = order.getProperty().toLowerCase();
         Order direction = order.isAscending() ? Order.ASC : Order.DESC;
@@ -77,16 +77,16 @@ public class ActivityQuerySupport {
         } else if (pathMap.containsKey(prop)) {
             Expression<?> path = pathMap.get(prop);
             if (groups.isEmpty() || isPathInGroups(path, groups)) {
-                query.orderBy(new OrderSpecifier(direction, path));
+                query.orderBy(createOrderSpecifier(direction, path));
             }
         }
     }
 
     private static void applyDefaultSort(JPAQuery<?> query, QActivity activity, List<Expression<?>> groups) {
         if (!groups.isEmpty()) {
-            groups.forEach(expr -> query.orderBy(new OrderSpecifier(Order.ASC, expr)));
+            groups.forEach(expr -> query.orderBy(createOrderSpecifier(Order.ASC, expr)));
         } else {
-            query.orderBy(activity.date.desc());
+            query.orderBy(new OrderSpecifier<>(Order.DESC, activity.date));
         }
     }
 
@@ -115,5 +115,10 @@ public class ActivityQuerySupport {
 
     private static boolean isPathInGroups(Expression<?> path, List<Expression<?>> groups) {
         return groups.stream().anyMatch(g -> g.equals(path) || g.toString().equals(path.toString()));
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static OrderSpecifier<?> createOrderSpecifier(Order direction, Expression<?> path) {
+        return new OrderSpecifier(direction, path);
     }
 }
