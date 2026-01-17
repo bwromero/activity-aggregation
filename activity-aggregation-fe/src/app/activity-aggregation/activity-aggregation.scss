@@ -14,7 +14,6 @@
   mat-card-header {
     background-color: #f8f9fa;
     padding: 16px;
-    margin-bottom: 16px;
     border-bottom: 1px solid #e0e0e0;
   }
 
@@ -27,6 +26,8 @@
 
   mat-card-content {
     padding: 24px;
+    min-height: 400px; // ✅ Prevent layout shift
+    position: relative; // For absolute positioning of states
   }
 }
 
@@ -37,6 +38,10 @@
   align-items: center;
   padding: 40px;
   min-height: 200px;
+  position: absolute; // ✅ Overlay positioning
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .error {
@@ -59,6 +64,7 @@
 
 .no-data {
   display: flex;
+  flex-direction: column; // ✅ Stack emoji and text
   justify-content: center;
   align-items: center;
   padding: 60px 20px;
@@ -67,11 +73,14 @@
   font-style: italic;
   text-align: center;
   min-height: 200px;
+  position: absolute; // ✅ Overlay positioning
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 
   &::before {
     content: '📭';
     font-size: 48px;
-    display: block;
     margin-bottom: 16px;
   }
 }
@@ -85,6 +94,7 @@
   .aggregation-card {
     mat-card-content {
       padding: 16px;
+      min-height: 350px; // ✅ Adjusted for mobile
     }
   }
 
