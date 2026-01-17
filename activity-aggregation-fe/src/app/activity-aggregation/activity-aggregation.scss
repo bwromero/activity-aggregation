@@ -152,12 +152,22 @@
     min-height: 3.5rem;
   }
 
+  .mat-mdc-form-field-infix {
+    text-align: center;
+  }
+
   .mat-mdc-paginator-page-size-label,
   .mat-mdc-paginator-range-label {
     font-size: var(--font-size-sm);
     color: var(--color-text-primary);
     margin: 0 var(--spacing-sm);
   }
+
+  .mat-mdc-select-arrow-wrapper {
+  .mat-mdc-select-arrow {
+    left: -100%;
+  }
+}
 
   .mat-mdc-paginator-range-actions {
     display: flex;
