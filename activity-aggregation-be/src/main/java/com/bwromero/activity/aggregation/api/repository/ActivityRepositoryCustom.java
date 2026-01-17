@@ -1,6 +1,6 @@
 package com.bwromero.activity.aggregation.api.repository;
 
-import com.bwromero.activity.aggregation.api.model.ActivityResponse;
+import com.bwromero.activity.aggregation.api.dto.ActivityResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

@@ -1,4 +1,4 @@
-package com.bwromero.activity.aggregation.api.model;
+package com.bwromero.activity.aggregation.api.dto;
 
 import java.sql.Date;
 

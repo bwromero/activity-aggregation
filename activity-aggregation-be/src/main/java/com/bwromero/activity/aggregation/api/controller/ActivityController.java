@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import com.bwromero.activity.aggregation.api.model.ActivityResponse;
+import com.bwromero.activity.aggregation.api.dto.ActivityResponse;
 
 @RestController
 @RequestMapping("/api/activities")

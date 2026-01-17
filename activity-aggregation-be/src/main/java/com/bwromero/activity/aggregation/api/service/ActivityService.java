@@ -1,6 +1,6 @@
 package com.bwromero.activity.aggregation.api.service;
 
-import com.bwromero.activity.aggregation.api.model.ActivityResponse;
+import com.bwromero.activity.aggregation.api.dto.ActivityResponse;
 import com.bwromero.activity.aggregation.api.repository.ActivityRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
