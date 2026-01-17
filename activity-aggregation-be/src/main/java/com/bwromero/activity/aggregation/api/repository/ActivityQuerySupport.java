@@ -2,10 +2,7 @@ package com.bwromero.activity.aggregation.api.repository;
 
 import com.bwromero.activity.aggregation.api.dto.ActivityResponse;
 import com.bwromero.activity.aggregation.api.model.QActivity;
-import com.querydsl.core.types.Expression;
-import com.querydsl.core.types.Order;
-import com.querydsl.core.types.OrderSpecifier;
-import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.*;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -18,12 +15,12 @@ import java.util.stream.Collectors;
 
 /**
  * High-level QueryDSL support for Activity aggregations.
- * Optimized for clean readability and strict SQL compliance.
+ * Optimized for clean, professional sorting based on the selection hierarchy.
  */
 @UtilityClass
 public class ActivityQuerySupport {
 
-    public static Map<String, Expression<?>> createPathMap(QActivity activity, Expression<java.sql.Date> dateDayPath) {
+    public static Map<String, Expression<?>> createPathMap(QActivity activity, Expression<Date> dateDayPath) {
         return Map.of(
                 "project", activity.project.name,
                 "employee", activity.employee.name,
@@ -50,12 +47,12 @@ public class ActivityQuerySupport {
         if (!groups.isEmpty()) {
             query.groupBy(groups.toArray(Expression[]::new));
         } else {
-            // Flattened view grouping
+            // Flattened view: group by all metadata to maintain strict SQL compatibility
             query.groupBy(activity.id, activity.project.name, activity.employee.name, dateDayPath);
         }
     }
 
-    public static void applySorting(JPAQuery<?> query, QActivity activity, Sort sort,
+    public static void applySorting(JPAQuery<?> query, QActivity activity, Sort sort, 
                                     Map<String, Expression<?>> pathMap, List<Expression<?>> groups) {
         if (sort.isSorted()) {
             for (Sort.Order order : sort) {
@@ -66,7 +63,7 @@ public class ActivityQuerySupport {
         }
     }
 
-    private static void applySingleSort(JPAQuery<?> query, QActivity activity, Sort.Order order,
+    private static void applySingleSort(JPAQuery<?> query, QActivity activity, Sort.Order order, 
                                         Map<String, Expression<?>> pathMap, List<Expression<?>> groups) {
         String prop = order.getProperty().toLowerCase();
         Order direction = order.isAscending() ? Order.ASC : Order.DESC;
@@ -84,9 +81,24 @@ public class ActivityQuerySupport {
 
     private static void applyDefaultSort(JPAQuery<?> query, QActivity activity, List<Expression<?>> groups) {
         if (!groups.isEmpty()) {
-            groups.forEach(expr -> query.orderBy(createOrderSpecifier(Order.ASC, expr)));
+            // CHALLENGE DEEP FIX: To match the PDF's 'Natural Order', we sort by the 
+            // MIN ID of the entities in the exact order they were selected. 
+            // Since ID 1 (Mars Rover/Mario) was created first, this puts them at the top.
+            for (Expression<?> expr : groups) {
+                if (expr.toString().contains("employee")) {
+                    query.orderBy(activity.employee.id.min().asc());
+                } else if (expr.toString().contains("project")) {
+                    query.orderBy(activity.project.id.min().asc());
+                } else {
+                    query.orderBy(createOrderSpecifier(Order.ASC, expr));
+                }
+            }
+            
+            // Secondary sort: High hours first within those natural groups
+            query.orderBy(new OrderSpecifier<>(Order.DESC, activity.hours.sum()));
         } else {
-            query.orderBy(new OrderSpecifier<>(Order.DESC, activity.date));
+            // Flattened view matches activity insertion order
+            query.orderBy(activity.id.asc());
         }
     }
 
@@ -105,7 +117,8 @@ public class ActivityQuerySupport {
 
     public static long calculateTotal(JPAQueryFactory queryFactory, QActivity activity, List<Expression<?>> groups) {
         if (groups.isEmpty()) {
-            return Optional.ofNullable(queryFactory.select(activity.count()).from(activity).fetchOne()).orElse(0L);
+            Long count = queryFactory.select(activity.count()).from(activity).fetchOne();
+            return count != null ? count : 0L;
         }
         return queryFactory.select(Expressions.asNumber(1))
                 .from(activity)
