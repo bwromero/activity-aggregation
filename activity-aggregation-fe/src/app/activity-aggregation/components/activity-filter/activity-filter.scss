@@ -1,6 +1,17 @@
+// Activity Filter Component Styles
+// Uses SCSS nesting and design tokens
+
 .aggregation-options {
-    display: flex;
-    gap: 24px;
-    margin: 20px 0;
-    flex-wrap: wrap;
+  display: flex;
+  gap: var(--spacing-xl);
+  margin: var(--spacing-lg) 0;
+  flex-wrap: wrap;
+  align-items: center;
+
+  // Material checkbox overrides (if needed)
+  ::ng-deep .mat-mdc-checkbox {
+    .mdc-form-field {
+      font-size: var(--font-size-base);
+    }
   }
+}

@@ -1,21 +1,24 @@
+// App Container - Root Component Styles
+// Uses design tokens from styles.scss
+
 .app-container {
-    min-height: 100vh;
-    background-color: #fafafa;
-  
-    header {
-      background-color: #3f51b5;
-      color: white;
-      padding: 16px 24px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  
-      h1 {
-        margin: 0;
-        font-size: 24px;
-        font-weight: 400;
-      }
-    }
-  
-    main {
-      padding: 20px;
+  min-height: 100vh;
+  background-color: var(--color-background);
+
+  header {
+    background-color: var(--color-primary);
+    color: var(--color-surface);
+    padding: var(--spacing-md) var(--spacing-xl);
+    box-shadow: var(--shadow-sm);
+
+    h1 {
+      margin: 0;
+      font-size: var(--font-size-xl);
+      font-weight: var(--font-weight-normal);
     }
   }
+
+  main {
+    padding: var(--spacing-lg);
+  }
+}

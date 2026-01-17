@@ -3,6 +3,7 @@ package com.bwromero.activity.aggregation.api.service;
 import com.bwromero.activity.aggregation.api.model.Activity;
 import com.bwromero.activity.aggregation.api.repository.ActivityRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import com.bwromero.activity.aggregation.api.model.ActivityResponse;
 
@@ -15,6 +16,7 @@ public class ActivityService {
 
     private final ActivityRepository repository;
 
+    @Cacheable(value = "activities", key = "#groupBy == null || #groupBy.isEmpty() ? '__all__' : T(java.util.stream.Stream).of(#groupBy.toArray()).sorted().collect(T(java.util.stream.Collectors).joining(','))")
     public List<ActivityResponse> getAggregatedActivities(List<String> groupBy) {
         List<Activity> allActivities = repository.findAll();
 
@@ -41,28 +43,30 @@ public class ActivityService {
             aggregated.merge(key, a.getHours(), Integer::sum);
         }
 
-        List<ActivityResponse> result = new ArrayList<>();
-        for (Map.Entry<List<Object>, Integer> entry : aggregated.entrySet()) {
-            String project = null;
-            String employee = null;
-            String date = null;
-
-            List<Object> values = entry.getKey();
-            for (int i = 0; i < groupBy.size(); i++) {
-                String field = groupBy.get(i).toLowerCase();
-                Object value = values.get(i);
-
-                switch (field) {
-                    case "project" -> project = (String) value;
-                    case "employee" -> employee = (String) value;
-                    case "date" -> date = (String) value;
-                }
-            }
-
-            result.add(new ActivityResponse(project, employee, date, entry.getValue()));
-        }
-
-        return result;
+        return mapToActivityResponseList(aggregated, groupBy);
     }
-}
 
+        private List<ActivityResponse> mapToActivityResponseList(Map<List<Object>, Integer> aggregated, List<String> groupBy) {
+            List<ActivityResponse> result = new ArrayList<>();
+            for (Map.Entry<List<Object>, Integer> entry : aggregated.entrySet()) {
+                String project = null;
+                String employee = null;
+                String date = null;
+
+                List<Object> values = entry.getKey();
+                for (int i = 0; i < groupBy.size(); i++) {
+                    String field = groupBy.get(i).toLowerCase();
+                    Object value = values.get(i);
+
+                    switch (field) {
+                        case "project" -> project = (String) value;
+                        case "employee" -> employee = (String) value;
+                        case "date" -> date = (String) value;
+                    }
+                }
+
+                result.add(new ActivityResponse(project, employee, date, entry.getValue()));
+            }
+            return result;
+        }
+    }

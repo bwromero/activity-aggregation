@@ -1,11 +1,88 @@
+// Activity Table Component Styles
+// Uses SCSS nesting, & operator, and design tokens
+
 .table-container {
-    margin-top: 20px;
-    overflow-x: auto;
+  margin-top: var(--spacing-lg);
+  overflow-x: auto;
+  border-radius: var(--border-radius-md);
+
+  // Smooth scrollbar (WebKit browsers)
+  &::-webkit-scrollbar {
+    height: 0.5rem;
   }
-  .activity-table {
-    width: 100%;
-    th {
-      font-weight: 600;
-      background-color: #f5f5f5;
+
+  &::-webkit-scrollbar-track {
+    background-color: var(--color-border-light);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: var(--border-radius-sm);
+
+    &:hover {
+      background-color: var(--color-text-secondary);
     }
   }
+}
+
+.activity-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  // Table header cells
+  th {
+    font-weight: var(--font-weight-semibold);
+    background-color: var(--color-border-light);
+    padding: var(--spacing-md);
+    text-align: left;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    border-bottom: 0.125rem solid var(--color-border);
+    transition: background-color var(--transition-fast);
+
+    &:hover {
+      background-color: var(--color-border);
+    }
+  }
+
+  // Table data cells
+  td {
+    padding: var(--spacing-md);
+    font-size: var(--font-size-base);
+    color: var(--color-text-primary);
+    border-bottom: 0.0625rem solid var(--color-border-light);
+    transition: background-color var(--transition-fast);
+  }
+
+  // Table rows
+  tr {
+    transition: background-color var(--transition-fast);
+
+    &:hover {
+      background-color: rgba(63, 81, 181, 0.04);
+    }
+
+    &:last-child td {
+      border-bottom: none;
+    }
+  }
+
+  // Hours column (centered)
+  .mat-column-hours,
+  .hours-cell {
+    text-align: center;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-primary);
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 48rem) { // Mobile breakpoint
+  .activity-table {
+    th,
+    td {
+      padding: var(--spacing-sm);
+      font-size: var(--font-size-sm);
+    }
+  }
+}

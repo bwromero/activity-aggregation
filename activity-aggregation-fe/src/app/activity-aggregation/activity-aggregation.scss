@@ -1,106 +1,156 @@
-// Container Component Styles
+// Activity Aggregation Container Component Styles
+// Uses SCSS nesting, & operator, and design tokens
 // Only styles for the smart container, child components have their own styles
 
 .container {
-  padding: 20px;
-  max-width: 1200px;
+  padding: var(--spacing-lg);
+  max-width: var(--container-max-width);
   margin: 0 auto;
 }
 
 .aggregation-card {
-  margin-top: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-top: var(--spacing-lg);
+  box-shadow: var(--shadow-md);
+  border-radius: var(--border-radius-md);
+  background-color: var(--color-surface);
+  overflow: hidden;
 
   mat-card-header {
-    background-color: #f8f9fa;
-    padding: 16px;
-    border-bottom: 1px solid #e0e0e0;
+    background-color: var(--color-border-light);
+    padding: var(--spacing-md);
+    border-bottom: 0.0625rem solid var(--color-border);
   }
 
   mat-card-subtitle {
-    font-size: 16px;
-    font-weight: 500;
-    color: #424242;
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary);
     margin: 0;
   }
 
   mat-card-content {
-    padding: 24px;
-    min-height: 400px; // ✅ Prevent layout shift
-    position: relative; // For absolute positioning of states
+    padding: var(--spacing-xl);
+    min-height: 25rem; // Prevent layout shift
+    position: relative; // For absolute positioning of loading states
   }
 }
 
-// State styles
+// ========== STATE STYLES ==========
+
+// Loading spinner overlay
 .loading {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 40px;
-  min-height: 200px;
-  position: absolute; // ✅ Overlay positioning
+  padding: var(--spacing-2xl);
+  min-height: 12.5rem;
+  position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-}
+  z-index: 10;
 
-.error {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #d32f2f;
-  background-color: #ffebee;
-  border-left: 4px solid #d32f2f;
-  padding: 16px;
-  border-radius: 4px;
-  margin: 16px 0;
-  font-size: 14px;
-
+  // Optional: Add backdrop
   &::before {
-    content: '⚠';
-    font-size: 20px;
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    z-index: -1;
   }
 }
 
+// Error message
+.error {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--color-error);
+  background-color: var(--color-error-light);
+  border-left: 0.25rem solid var(--color-error);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-sm);
+  margin: var(--spacing-md) 0;
+  font-size: var(--font-size-sm);
+  animation: slideIn var(--transition-base);
+
+  &::before {
+    content: '⚠';
+    font-size: var(--font-size-lg);
+    line-height: 1;
+  }
+}
+
+// No data state
 .no-data {
   display: flex;
-  flex-direction: column; // ✅ Stack emoji and text
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 60px 20px;
-  color: #9e9e9e;
-  font-size: 16px;
+  padding: var(--spacing-3xl) var(--spacing-lg);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
   font-style: italic;
   text-align: center;
-  min-height: 200px;
-  position: absolute; // ✅ Overlay positioning
+  min-height: 12.5rem;
+  position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
 
   &::before {
     content: '📭';
-    font-size: 48px;
-    margin-bottom: 16px;
+    font-size: var(--font-size-2xl);
+    margin-bottom: var(--spacing-md);
+    line-height: 1;
   }
 }
 
-// Responsive design
-@media (max-width: 768px) {
+// ========== ANIMATIONS ==========
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// ========== RESPONSIVE DESIGN ==========
+
+@media (max-width: 48rem) { // Mobile breakpoint
   .container {
-    padding: 12px;
+    padding: var(--spacing-sm);
   }
 
   .aggregation-card {
     mat-card-content {
-      padding: 16px;
-      min-height: 350px; // ✅ Adjusted for mobile
+      padding: var(--spacing-md);
+      min-height: 21.875rem; // Adjusted for mobile
     }
   }
 
   .loading,
   .no-data {
-    min-height: 150px;
-    padding: 30px 20px;
+    min-height: 9.375rem;
+    padding: var(--spacing-lg) var(--spacing-md);
+  }
+}
+
+@media (max-width: 30rem) { // Small mobile
+  .aggregation-card {
+    mat-card-header {
+      padding: var(--spacing-sm);
+    }
+
+    mat-card-subtitle {
+      font-size: var(--font-size-sm);
+    }
   }
 }
