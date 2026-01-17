@@ -1,5 +1,6 @@
 <div class="table-container">
-    <table mat-table [dataSource]="data()" class="activity-table">
+    <table mat-table [dataSource]="data()" [trackBy]="trackById"
+    matSort class="activity-table">
       @if (displayedColumns().includes(ACTIVITY_FIELDS.PROJECT)) {
         <ng-container [matColumnDef]="ACTIVITY_FIELDS.PROJECT">
           <th mat-header-cell *matHeaderCellDef>

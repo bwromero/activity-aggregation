@@ -16,4 +16,10 @@ export class ActivityTableComponent {
 
   readonly data = input.required<AggregatedData[]>();
   readonly displayedColumns = input.required<ActivityField[]>();
+
+  trackById(index: number, item: AggregatedData): string {
+    // We create a unique key based on the visible fields.
+    // If these values are the same, the row is effectively the same.
+    return `${item.project}-${item.employee}-${item.date}`;
+}
 }
