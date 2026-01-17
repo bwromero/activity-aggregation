@@ -1,30 +1,31 @@
 import { Injectable, inject, signal, computed, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { HttpClient, HttpParams, HttpErrorResponse } from '@angular/common/http';
-import { Subject, switchMap, debounceTime, retry, catchError, of, tap, Observable } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Subject, switchMap, debounceTime, of, tap, Observable } from 'rxjs';
 import { AggregatedData } from '../models/aggregated-data.model';
 import {
-  API_CONFIG,
   GroupByField,
   ACTIVITY_FIELDS,
   DEFAULT_COLUMNS,
   ActivityField,
   UI_CONFIG
 } from '../constants/activity-aggregation';
-import { environment } from '../../../environments/environment';
 import { TimeBasedCache } from '../utils/cache';
+import { ActivityApiClient } from '../utils/activity-api';
+import { StateHelpers } from '../utils/state.';
+
 
 /**
- * Service that handles API calls and state management for activity aggregation
+ * Service that handles state management for activity aggregation
+ * Uses Repository Pattern (ActivityApiClient) for data access
  */
 @Injectable()
 export class ActivityService {
   // ========== DEPENDENCIES ==========
-  private readonly http = inject(HttpClient);
+  private readonly apiClient = inject(ActivityApiClient);
   private readonly destroyRef = inject(DestroyRef);
 
   // ========== CONFIGURATION ==========
-  private readonly baseUrl = `${environment.apiBaseUrl}${API_CONFIG.endpoints.activities}`;
   private readonly cache = new TimeBasedCache<AggregatedData[]>(5 * 60 * 1000);
   private readonly loadTrigger$ = new Subject<GroupByField[]>();
 
@@ -51,11 +52,11 @@ export class ActivityService {
     computed(() => this._selectedFields().includes(field));
 
   readonly hasData = computed(() =>
-    !this._loading() && !this._error() && this._data().length > 0
+    StateHelpers.hasData(this._loading(), this._error(), this._data().length)
   );
 
   readonly showNoData = computed(() =>
-    !this._loading() && !this._error() && this._data().length === 0
+    StateHelpers.showNoData(this._loading(), this._error(), this._data().length)
   );
 
   // ========== INITIALIZATION ==========
@@ -65,15 +66,12 @@ export class ActivityService {
 
   // ========== PUBLIC API ==========
   
-  /**
-   * Toggle field selection for aggregation
-   */
   toggleField(field: GroupByField): void {
     this.updateSelectedFields(field);
     this.triggerDataLoad();
   }
 
-  // ========== PRIVATE METHODS: STATE MANAGEMENT ==========
+  // ========== PRIVATE METHODS ==========
 
   private updateSelectedFields(field: GroupByField): void {
     this._selectedFields.update(current =>
@@ -98,35 +96,11 @@ export class ActivityService {
   }
 
   private setErrorState(err: HttpErrorResponse): void {
-    const message = err.error?.message || err.message || 'Unknown error';
-    this._error.set(`${UI_CONFIG.messages.loadingError}: ${message}`);
+    const message = StateHelpers.extractErrorMessage(err, UI_CONFIG.messages.loadingError);
+    this._error.set(message);
     this._loading.set(false);
     this._data.set([]);
   }
-
-  // ========== PRIVATE METHODS: CACHE ==========
-
-  private getCacheKey(groupBy: GroupByField[]): string {
-    return groupBy.length === 0 ? '__all__' : [...groupBy].sort().join(',');
-  }
-
-  private tryGetCachedData(cacheKey: string): Observable<AggregatedData[]> | null {
-    const cachedData = this.cache.get(cacheKey);
-    
-    if (cachedData) {
-      this._loading.set(false);
-      this._error.set(null);
-      return of(cachedData);
-    }
-    
-    return null;
-  }
-
-  private cacheData(cacheKey: string, data: AggregatedData[]): void {
-    this.cache.set(cacheKey, data);
-  }
-
-  // ========== PRIVATE METHODS: DATA LOADING ==========
 
   private initializeLoadPipeline(): void {
     this.loadTrigger$.pipe(
@@ -138,44 +112,22 @@ export class ActivityService {
       error: (err) => this.setErrorState(err)
     });
 
-    // Initial load
     this.loadTrigger$.next([]);
   }
 
   private loadData(groupBy: GroupByField[]): Observable<AggregatedData[]> {
-    const cacheKey = this.getCacheKey(groupBy);
-    const cached$ = this.tryGetCachedData(cacheKey);
+    const cacheKey = TimeBasedCache.generateKey(groupBy);
+    const cachedData = this.cache.get(cacheKey);
 
-    if (cached$) {
-      return cached$;
+    if (cachedData) {
+      this._loading.set(false);
+      this._error.set(null);
+      return of(cachedData);
     }
 
     this.setLoadingState();
-    return this.fetchFromApi(groupBy).pipe(
-      tap(data => this.cacheData(cacheKey, data))
+    return this.apiClient.getAggregated(groupBy).pipe(
+      tap(data => this.cache.set(cacheKey, data))
     );
-  }
-
-  private fetchFromApi(groupBy: GroupByField[]): Observable<AggregatedData[]> {
-    const params = this.buildHttpParams(groupBy);
-    const url = `${this.baseUrl}${API_CONFIG.endpoints.aggregate}`;
-
-    return this.http.get<AggregatedData[]>(url, { params }).pipe(
-      retry({ count: 2, delay: 1000 }),
-      catchError((err) => {
-        console.error('API fetch error:', err);
-        throw err;
-      })
-    );
-  }
-
-  private buildHttpParams(groupBy: GroupByField[]): HttpParams {
-    let params = new HttpParams();
-    
-    if (groupBy.length > 0) {
-      params = params.set(API_CONFIG.queryParams.groupBy, groupBy.join(','));
-    }
-    
-    return params;
   }
 }

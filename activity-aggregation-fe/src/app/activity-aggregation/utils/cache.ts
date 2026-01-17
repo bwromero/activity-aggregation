@@ -63,4 +63,11 @@ interface CacheEntry<T> {
     get size(): number {
       return this.cache.size;
     }
+  
+    /**
+     * Generate cache key from array of strings (sorted for consistency)
+     */
+    static generateKey(fields: string[]): string {
+      return fields.length === 0 ? '__all__' : [...fields].sort().join(',');
+    }
   }
