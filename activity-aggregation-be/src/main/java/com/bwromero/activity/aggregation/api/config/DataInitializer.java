@@ -11,15 +11,10 @@ import jakarta.persistence.PersistenceContext;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -70,6 +65,8 @@ public class DataInitializer {
 
                 if (batch.size() >= batchSize) {
                     actRepo.saveAll(batch);
+                    actRepo.flush(); // Push to DB
+                    entityManager.clear(); // Clear memory!!
                     batch.clear();
                     if (i % 10_000 == 0) System.out.println("Inserted " + i + " rows...");
                 }

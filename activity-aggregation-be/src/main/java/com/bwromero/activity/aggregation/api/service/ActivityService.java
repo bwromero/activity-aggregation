@@ -106,10 +106,11 @@ public class ActivityService {
         } else {
             // Count the number of unique groups formed
             total = queryFactory
-                    .select(Expressions.asNumber(1))
+                    .select(activity.id.count()) // or activity.count()
                     .from(activity)
                     .groupBy(groupList.toArray(new Expression[0]))
-                    .fetch().size();
+                    .fetch()
+                    .size();
         }
 
         return new PageImpl<>(content, pageable, total);
