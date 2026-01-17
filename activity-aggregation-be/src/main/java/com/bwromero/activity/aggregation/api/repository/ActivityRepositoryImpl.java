@@ -116,7 +116,7 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom {
                 } else if (pathMap.containsKey(prop)) {
                     Expression<?> path = pathMap.get(prop);
                     // Standard SQL Rule: Cannot sort by a column that is not grouped or aggregated
-                    if (groupExpressions.isEmpty() || groupExpressions.contains(path)) {
+                    if (groupExpressions.isEmpty() || isPathInGroups(path, groupExpressions)) {
                         query.orderBy(new OrderSpecifier(direction, path));
                     }
                 }
@@ -130,6 +130,11 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom {
             }
         }
     }
+
+    private boolean isPathInGroups(Expression<?> path, List<Expression<?>> groupExpressions) {
+        return groupExpressions.stream().anyMatch(g -> g.equals(path) || g.toString().equals(path.toString()));
+    }
+
 
     private long calculateTotal(JPAQueryFactory queryFactory, QActivity activity, List<Expression<?>> groupExpressions) {
         if (groupExpressions.isEmpty()) {
