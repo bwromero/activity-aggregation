@@ -1,6 +1,7 @@
 package com.bwromero.activity.aggregation.api.service;
 
 import com.bwromero.activity.aggregation.api.model.Activity;
+import com.bwromero.activity.aggregation.api.model.ActivityResponse;
 import com.bwromero.activity.aggregation.api.model.QActivity;
 import com.bwromero.activity.aggregation.api.repository.ActivityRepository;
 import com.querydsl.core.types.Expression;
@@ -11,13 +12,13 @@ import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.PathBuilder;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import com.bwromero.activity.aggregation.api.model.ActivityResponse;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -27,28 +28,18 @@ import java.util.stream.Collectors;
 public class ActivityService {
 
     private final ActivityRepository repository;
-    private final jakarta.persistence.EntityManager entityManager;
+    private final EntityManager entityManager;
 
     @Cacheable(value = "activities", key = "T(java.util.Objects).hash(#groupBy, #pageable.pageNumber, #pageable.pageSize, #pageable.sort.toString())")
     public Page<ActivityResponse> getAggregatedActivities(List<String> groupBy, Pageable pageable) {
         JPAQueryFactory queryFactory = new JPAQueryFactory(entityManager);
         QActivity activity = QActivity.activity;
 
-        // 1. Identify which groups are active
-        List<String> activeGroups = groupBy == null ? List.of() : groupBy;
-        Set<String> groupsSet = activeGroups.stream()
-                .map(String::toLowerCase)
-                .collect(Collectors.toSet());
-        
+        Set<String> groupsSet = normalizeGroups(groupBy);
         boolean noGrouping = groupsSet.isEmpty();
+        List<Expression<?>> groupList = buildGroupList(activity, groupsSet);
 
-        // 2. Build the group list for the SQL GROUP BY clause
-        List<Expression<?>> groupList = new ArrayList<>();
-        if (groupsSet.contains("project")) groupList.add(activity.project.name);
-        if (groupsSet.contains("employee")) groupList.add(activity.employee.name);
-        if (groupsSet.contains("date")) groupList.add(activity.date);
-
-        // 3. Build the Select Query
+        // 1. Build Base Query
         JPAQuery<ActivityResponse> query = queryFactory
                 .select(Projections.constructor(ActivityResponse.class,
                         (noGrouping || groupsSet.contains("project")) ? activity.project.name : Expressions.nullExpression(String.class),
@@ -58,9 +49,42 @@ public class ActivityService {
                 ))
                 .from(activity);
 
-        // 4. Apply Sorting
+        // 2. Apply Grouping & Sorting
+        applyGrouping(query, activity, noGrouping, groupList);
+        applySorting(query, activity, pageable, groupBy, noGrouping);
+
+        // 3. Execute and Count
+        List<ActivityResponse> content = query
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        return new PageImpl<>(content, pageable, calculateTotal(queryFactory, activity, noGrouping, groupList));
+    }
+
+    private Set<String> normalizeGroups(List<String> groupBy) {
+        if (groupBy == null) return Collections.emptySet();
+        return groupBy.stream().map(String::toLowerCase).collect(Collectors.toSet());
+    }
+
+    private List<Expression<?>> buildGroupList(QActivity activity, Set<String> groupsSet) {
+        List<Expression<?>> groupList = new ArrayList<>();
+        if (groupsSet.contains("project")) groupList.add(activity.project.name);
+        if (groupsSet.contains("employee")) groupList.add(activity.employee.name);
+        if (groupsSet.contains("date")) groupList.add(activity.date);
+        return groupList;
+    }
+
+    private void applyGrouping(JPAQuery<?> query, QActivity activity, boolean noGrouping, List<Expression<?>> groupList) {
+        if (!noGrouping) {
+            query.groupBy(groupList.toArray(new Expression[0]));
+        } else {
+            query.groupBy(activity.id, activity.project.name, activity.employee.name, activity.date);
+        }
+    }
+
+    private void applySorting(JPAQuery<?> query, QActivity activity, Pageable pageable, List<String> originalGroups, boolean noGrouping) {
         if (pageable.getSort().isSorted()) {
-            // User-defined sorting from the table headers
             pageable.getSort().forEach(order -> {
                 if (order.getProperty().equalsIgnoreCase("hours")) {
                     query.orderBy(new OrderSpecifier(order.isAscending() ? Order.ASC : Order.DESC, activity.hours.sum()));
@@ -73,46 +97,25 @@ public class ActivityService {
                 }
             });
         } else if (!noGrouping) {
-            // Default UX Sort: Sort by grouping fields in the order they were selected
-            for (String group : activeGroups) {
+            for (String group : originalGroups) {
                 String field = group.toLowerCase();
                 if (field.equals("project")) query.orderBy(activity.project.name.asc());
                 else if (field.equals("employee")) query.orderBy(activity.employee.name.asc());
                 else if (field.equals("date")) query.orderBy(activity.date.asc());
             }
         } else {
-            // Default Raw Data Sort: Show most recent activities first
             query.orderBy(activity.date.desc());
         }
+    }
 
-        // 5. Apply Grouping
-        if (!noGrouping) {
-            query.groupBy(groupList.toArray(new Expression[0]));
-        } else {
-            // Group by ID and projected fields to satisfy Postgres for raw data view
-            query.groupBy(activity.id, activity.project.name, activity.employee.name, activity.date);
-        }
-
-        // 6. Execute Paginated Data Fetch
-        List<ActivityResponse> content = query
-                .offset(pageable.getOffset())
-                .limit(pageable.getPageSize())
-                .fetch();
-
-        // 7. Calculate Total Count
-        long total;
+    private long calculateTotal(JPAQueryFactory queryFactory, QActivity activity, boolean noGrouping, List<Expression<?>> groupList) {
         if (noGrouping) {
-            total = repository.count();
-        } else {
-            // Count the number of unique groups formed
-            total = queryFactory
-                    .select(activity.id.count()) // or activity.count()
-                    .from(activity)
-                    .groupBy(groupList.toArray(new Expression[0]))
-                    .fetch()
-                    .size();
+            return repository.count();
         }
-
-        return new PageImpl<>(content, pageable, total);
+        return queryFactory
+                .select(activity.id.count())
+                .from(activity)
+                .groupBy(groupList.toArray(new Expression[0]))
+                .fetch().size();
     }
 }
