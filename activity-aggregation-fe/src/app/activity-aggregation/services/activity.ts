@@ -74,14 +74,6 @@ export class ActivityService {
     );
     this.loadTrigger$.next(this._selectedFields());
   }
-
-  /**
-   * Manually refresh data
-   */
-  refresh(): void {
-    this.loadTrigger$.next(this._selectedFields());
-  }
-
   /**
    * Setup reactive data loading pipeline with debounce and cancellation
    */
