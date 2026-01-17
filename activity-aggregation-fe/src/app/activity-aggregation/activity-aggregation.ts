@@ -1,11 +1,11 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivityService } from './services/activity-service';
+import { ActivityService } from './services/activity';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { 
   ACTIVITY_FIELDS, 
-  UI_CONFIG} from './constants/activity-aggregation.constants';
+  UI_CONFIG} from './constants/activity-aggregation';
 import { ActivityFilterComponent } from './components/activity-filter/activity-filter';
 import { ActivityTableComponent } from './components/activity-table/activity-table';
 

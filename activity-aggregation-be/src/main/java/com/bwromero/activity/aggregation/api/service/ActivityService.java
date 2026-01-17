@@ -4,6 +4,7 @@ import com.bwromero.activity.aggregation.api.model.Activity;
 import com.bwromero.activity.aggregation.api.repository.ActivityRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.bwromero.activity.aggregation.api.model.ActivityResponse;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -14,29 +15,18 @@ public class ActivityService {
 
     private final ActivityRepository repository;
 
-    /**
-     * Aggregates activities based on a list of fields.
-     * The order of the fields in groupBy determines the aggregation hierarchy and display order.
-     */
-    public List<Map<String, Object>> getAggregatedActivities(List<String> groupBy) {
+    public List<ActivityResponse> getAggregatedActivities(List<String> groupBy) {
         List<Activity> allActivities = repository.findAll();
 
-        // If no grouping is requested, return the raw list with all fields
         if (groupBy == null || groupBy.isEmpty()) {
-            return allActivities.stream().map(a -> {
-                Map<String, Object> map = new LinkedHashMap<>();
-                map.put("project", a.getProject().getName());
-                map.put("employee", a.getEmployee().getName());
-                map.put("date", a.getDate().toLocalDate().toString());
-                map.put("hours", a.getHours());
-                return map;
-            }).collect(Collectors.toList());
+            return allActivities.stream().map(a -> new ActivityResponse(
+                    a.getProject().getName(),
+                    a.getEmployee().getName(),
+                    a.getDate().toLocalDate().toString(),
+                    a.getHours()
+            )).collect(Collectors.toList());
         }
 
-        // Grouping logic:
-        // Use a List of Objects as the key for the Map to represent the combination of grouping fields.
-        // LinkedHashMap is used to keep the order of insertion if needed, 
-        // though usually sorting happens after or by the grouping key.
         Map<List<Object>, Integer> aggregated = new LinkedHashMap<>();
 
         for (Activity a : allActivities) {
@@ -51,19 +41,28 @@ public class ActivityService {
             aggregated.merge(key, a.getHours(), Integer::sum);
         }
 
-        // Convert the grouping map into a list of maps for the JSON response
-        List<Map<String, Object>> result = new ArrayList<>();
+        List<ActivityResponse> result = new ArrayList<>();
         for (Map.Entry<List<Object>, Integer> entry : aggregated.entrySet()) {
-            Map<String, Object> row = new LinkedHashMap<>();
-            List<Object> keyValues = entry.getKey();
+            String project = null;
+            String employee = null;
+            String date = null;
+
+            List<Object> values = entry.getKey();
             for (int i = 0; i < groupBy.size(); i++) {
                 String field = groupBy.get(i).toLowerCase();
-                row.put(field, keyValues.get(i));
+                Object value = values.get(i);
+
+                switch (field) {
+                    case "project" -> project = (String) value;
+                    case "employee" -> employee = (String) value;
+                    case "date" -> date = (String) value;
+                }
             }
-            row.put("hours", entry.getValue());
-            result.add(row);
+
+            result.add(new ActivityResponse(project, employee, date, entry.getValue()));
         }
 
         return result;
     }
 }
+

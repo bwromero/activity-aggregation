@@ -1,5 +1,5 @@
 import { Component, input, output } from '@angular/core';
-import { ACTIVITY_FIELDS, COLUMN_CONFIGS, GroupByField } from '../../constants/activity-aggregation.constants';
+import { ACTIVITY_FIELDS, COLUMN_CONFIGS, GroupByField } from '../../constants/activity-aggregation';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 
 @Component({

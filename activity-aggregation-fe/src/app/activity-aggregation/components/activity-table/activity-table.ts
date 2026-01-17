@@ -1,6 +1,6 @@
 import { Component, input } from '@angular/core';
-import { ACTIVITY_FIELDS, ActivityField, COLUMN_CONFIGS } from '../../constants/activity-aggregation.constants';
-import { AggregatedData } from '../../model/Activity.model';
+import { ACTIVITY_FIELDS, ActivityField, COLUMN_CONFIGS } from '../../constants/activity-aggregation';
+import { AggregatedData } from '../../models/aggregated-data.model';
 import { MatTableModule } from '@angular/material/table';
 import { DatePipe } from '@angular/common';
 
