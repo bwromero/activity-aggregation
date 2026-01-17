@@ -77,13 +77,19 @@ public class ActivityQuerySupport {
 
     public static long calculateTotal(JPAQueryFactory queryFactory, QActivity activity, List<Expression<?>> groupExpressions) {
         if (groupExpressions.isEmpty()) {
-            return queryFactory.select(activity.count()).from(activity).fetchOne();
+            // Flattened view count: simple row count
+            Long count = queryFactory.select(activity.count()).from(activity).fetchOne();
+            return count != null ? count : 0L;
         }
+        
+        // Grouped view count: how many unique groups exist
+        // To avoid the "computed in memory" warning, we select the count of a constant 
+        // effectively counting the number of rows produced by the GROUP BY
         return queryFactory
-                .select(activity.id.count())
+                .select(Expressions.asNumber(1))
                 .from(activity)
                 .groupBy(groupExpressions.toArray(new Expression[0]))
-                .fetchCount();
+                .fetch().size();
     }
 
     public static Expression<ActivityResponse> createProjection(QActivity activity, Expression<java.sql.Date> dateDayPath, Set<String> activeGroups) {

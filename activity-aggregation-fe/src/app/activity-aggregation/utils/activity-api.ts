@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { retry, catchError } from 'rxjs/operators';
+import { retry, catchError, map } from 'rxjs/operators';
 import { PagedAggregatedData } from '../models/aggregated-data.model';
 import { API_CONFIG, GroupByField } from '../constants/activity-aggregation';
 import { environment } from '../../../environments/environment';
@@ -32,7 +32,17 @@ export class ActivityApiClient {
     const url = `${this.baseUrl}${API_CONFIG.endpoints.aggregate}`;
     const params = this.buildParams(groupBy, page, size, sort);
 
-    return this.http.get<PagedAggregatedData>(url, { params }).pipe(
+    return this.http.get<any>(url, { params }).pipe(
+      map(res => ({
+        content: res.content,
+        totalElements: res.page.totalElements,
+        totalPages: res.page.totalPages,
+        number: res.page.number,
+        size: res.page.size,
+        first: res.page.number === 0,
+        last: res.page.number >= res.page.totalPages - 1,
+        empty: res.content.length === 0
+      })),
       retry({ count: 2, delay: 1000 }),
       catchError((err) => {
         console.error('API fetch error:', err);
