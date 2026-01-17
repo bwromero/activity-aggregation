@@ -7,13 +7,6 @@ export const ACTIVITY_FIELDS = {
 
 export type ActivityField = typeof ACTIVITY_FIELDS[keyof typeof ACTIVITY_FIELDS];
 
-export const BACKEND_FIELD_MAPPING = {
-  Project: ACTIVITY_FIELDS.PROJECT,
-  Employee: ACTIVITY_FIELDS.EMPLOYEE,
-  Date: ACTIVITY_FIELDS.DATE,
-  Hours: ACTIVITY_FIELDS.HOURS
-} as const;
-
 export const GROUPABLE_FIELDS = [
   ACTIVITY_FIELDS.PROJECT,
   ACTIVITY_FIELDS.EMPLOYEE,

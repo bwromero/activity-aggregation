@@ -1,17 +1,4 @@
-export interface Activity {
-    project: {
-      id: number;
-      name: string;
-    };
-    employee: {
-      id: number;
-      name: string;
-    };
-    date: string;
-    hours: number;
-  }
-  
-  export interface AggregatedData {
+export interface AggregatedData {
     project?: string;
     employee?: string;
     date?: string;

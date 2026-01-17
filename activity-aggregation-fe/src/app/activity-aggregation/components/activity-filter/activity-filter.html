@@ -1,0 +1,22 @@
+<div class="aggregation-options">
+    <mat-checkbox
+      [checked]="isProjectSelected()"
+      (change)="fieldToggled.emit(ACTIVITY_FIELDS.PROJECT)"
+    >
+      {{ COLUMN_CONFIGS[ACTIVITY_FIELDS.PROJECT].label }}
+    </mat-checkbox>
+
+    <mat-checkbox
+      [checked]="isEmployeeSelected()"
+      (change)="fieldToggled.emit(ACTIVITY_FIELDS.EMPLOYEE)"
+    >
+      {{ COLUMN_CONFIGS[ACTIVITY_FIELDS.EMPLOYEE].label }}
+    </mat-checkbox>
+
+    <mat-checkbox
+      [checked]="isDateSelected()"
+      (change)="fieldToggled.emit(ACTIVITY_FIELDS.DATE)"
+    >
+      {{ COLUMN_CONFIGS[ACTIVITY_FIELDS.DATE].label }}
+    </mat-checkbox>
+  </div>

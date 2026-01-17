@@ -6,7 +6,6 @@ import { map } from 'rxjs/operators';
 import { AggregatedData } from '../model/Activity.model';
 import {
   API_CONFIG,
-  BACKEND_FIELD_MAPPING,
   GroupByField,
   ACTIVITY_FIELDS,
   DEFAULT_COLUMNS,
