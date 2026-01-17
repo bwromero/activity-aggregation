@@ -13,6 +13,8 @@ import {
 import { TimeBasedCache } from '../utils/cache';
 import { ActivityApiClient } from '../utils/activity-api';
 import { StateHelpers } from '../utils/state.';
+import { PageEvent } from '@angular/material/paginator';
+import { PaginationService } from './pagination';
 
 /**
  * Service that handles state management for activity aggregation
@@ -24,6 +26,8 @@ export class ActivityService {
   // ========== DEPENDENCIES ==========
   private readonly apiClient = inject(ActivityApiClient);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly pagination = inject(PaginationService);
+
 
   // ========== CONFIGURATION ==========
   private readonly cache = new TimeBasedCache<PagedAggregatedData>(5 * 60 * 1000);
@@ -207,5 +211,10 @@ export class ActivityService {
   private getCacheKey(groupBy: GroupByField[], page: number): string {
     const groupKey = TimeBasedCache.generateKey(groupBy);
     return `${groupKey}_page_${page}_size_${this._pageSize()}`;
+  }
+
+  handlePageEvent(event: PageEvent): void {
+    this.pagination.handlePageEvent(event);
+    this.triggerDataLoad();
   }
 }

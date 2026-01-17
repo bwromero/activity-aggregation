@@ -9,6 +9,7 @@ import {
   UI_CONFIG} from './constants/activity-aggregation';
 import { ActivityFilterComponent } from './components/activity-filter/activity-filter';
 import { ActivityTableComponent } from './components/activity-table/activity-table';
+import { PaginationService} from './services/pagination';
 
 @Component({
   selector: 'app-activity-aggregation',
@@ -21,7 +22,7 @@ import { ActivityTableComponent } from './components/activity-table/activity-tab
     ActivityFilterComponent,
     ActivityTableComponent
   ],
-  providers:[ActivityService],
+  providers:[ActivityService, PaginationService],
   templateUrl: './activity-aggregation.html',
   styleUrl: './activity-aggregation.scss'
 })
@@ -35,12 +36,6 @@ export class ActivityAggregationComponent {
    * Handle pagination events from MatPaginator
    */
   onPageChange(event: PageEvent): void {
-    if (event.pageSize !== this.service.pageSize()) {
-      // Page size changed - reset to first page
-      this.service.changePageSize(event.pageSize);
-    } else {
-      // Page index changed - navigate to page
-      this.service.goToPage(event.pageIndex);
-    }
+    this.service.handlePageEvent(event);
   }
 }
