@@ -2,7 +2,7 @@ import { Injectable, inject, signal, computed, DestroyRef } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Subject, switchMap, debounceTime, of, tap, Observable } from 'rxjs';
-import { AggregatedData } from '../models/aggregated-data.model';
+import { AggregatedData, PagedAggregatedData } from '../models/aggregated-data.model';
 import {
   GroupByField,
   ACTIVITY_FIELDS,
@@ -14,10 +14,10 @@ import { TimeBasedCache } from '../utils/cache';
 import { ActivityApiClient } from '../utils/activity-api';
 import { StateHelpers } from '../utils/state.';
 
-
 /**
  * Service that handles state management for activity aggregation
  * Uses Repository Pattern (ActivityApiClient) for data access
+ * Supports server-side pagination for large datasets
  */
 @Injectable()
 export class ActivityService {
@@ -26,20 +26,35 @@ export class ActivityService {
   private readonly destroyRef = inject(DestroyRef);
 
   // ========== CONFIGURATION ==========
-  private readonly cache = new TimeBasedCache<AggregatedData[]>(5 * 60 * 1000);
-  private readonly loadTrigger$ = new Subject<GroupByField[]>();
+  private readonly cache = new TimeBasedCache<PagedAggregatedData>(5 * 60 * 1000);
+  private readonly loadTrigger$ = new Subject<{
+    groupBy: GroupByField[];
+    page: number;
+  }>();
 
   // ========== PRIVATE STATE ==========
   private readonly _data = signal<AggregatedData[]>([]);
   private readonly _loading = signal(false);
   private readonly _error = signal<string | null>(null);
   private readonly _selectedFields = signal<GroupByField[]>([]);
+  
+  // Pagination state
+  private readonly _currentPage = signal(0);
+  private readonly _pageSize = signal(25);
+  private readonly _totalElements = signal(0);
+  private readonly _totalPages = signal(0);
 
   // ========== PUBLIC STATE ==========
   readonly data = this._data.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
   readonly selectedFields = this._selectedFields.asReadonly();
+  
+  // Pagination public state
+  readonly currentPage = this._currentPage.asReadonly();
+  readonly pageSize = this._pageSize.asReadonly();
+  readonly totalElements = this._totalElements.asReadonly();
+  readonly totalPages = this._totalPages.asReadonly();
 
   // ========== COMPUTED STATE ==========
   readonly displayedColumns = computed(() => 
@@ -59,6 +74,10 @@ export class ActivityService {
     StateHelpers.showNoData(this._loading(), this._error(), this._data().length)
   );
 
+  // Pagination computed
+  readonly hasPreviousPage = computed(() => this._currentPage() > 0);
+  readonly hasNextPage = computed(() => this._currentPage() < this._totalPages() - 1);
+
   // ========== INITIALIZATION ==========
   constructor() {
     this.initializeLoadPipeline();
@@ -66,9 +85,48 @@ export class ActivityService {
 
   // ========== PUBLIC API ==========
   
+  /**
+   * Toggle field selection for aggregation (resets to first page)
+   */
   toggleField(field: GroupByField): void {
     this.updateSelectedFields(field);
-    this.triggerDataLoad();
+    this.resetToFirstPage();
+  }
+
+  /**
+   * Navigate to specific page
+   */
+  goToPage(page: number): void {
+    if (page >= 0 && page < this._totalPages()) {
+      this._currentPage.set(page);
+      this.triggerDataLoad();
+    }
+  }
+
+  /**
+   * Navigate to next page
+   */
+  nextPage(): void {
+    if (this.hasNextPage()) {
+      this.goToPage(this._currentPage() + 1);
+    }
+  }
+
+  /**
+   * Navigate to previous page
+   */
+  previousPage(): void {
+    if (this.hasPreviousPage()) {
+      this.goToPage(this._currentPage() - 1);
+    }
+  }
+
+  /**
+   * Change page size (resets to first page)
+   */
+  changePageSize(size: number): void {
+    this._pageSize.set(size);
+    this.resetToFirstPage();
   }
 
   // ========== PRIVATE METHODS ==========
@@ -81,8 +139,16 @@ export class ActivityService {
     );
   }
 
+  private resetToFirstPage(): void {
+    this._currentPage.set(0);
+    this.triggerDataLoad();
+  }
+
   private triggerDataLoad(): void {
-    this.loadTrigger$.next(this._selectedFields());
+    this.loadTrigger$.next({
+      groupBy: this._selectedFields(),
+      page: this._currentPage()
+    });
   }
 
   private setLoadingState(): void {
@@ -90,8 +156,11 @@ export class ActivityService {
     this._error.set(null);
   }
 
-  private setSuccessState(data: AggregatedData[]): void {
-    this._data.set(data);
+  private setSuccessState(response: PagedAggregatedData): void {
+    this._data.set(response.content);
+    this._totalElements.set(response.totalElements);
+    this._totalPages.set(response.totalPages);
+    this._currentPage.set(response.number);
     this._loading.set(false);
   }
 
@@ -105,18 +174,22 @@ export class ActivityService {
   private initializeLoadPipeline(): void {
     this.loadTrigger$.pipe(
       debounceTime(150),
-      switchMap(groupBy => this.loadData(groupBy)),
+      switchMap(({ groupBy, page }) => this.loadData(groupBy, page)),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
-      next: (data) => this.setSuccessState(data),
+      next: (response) => this.setSuccessState(response),
       error: (err) => this.setErrorState(err)
     });
 
-    this.loadTrigger$.next([]);
+    // Initial load
+    this.triggerDataLoad();
   }
 
-  private loadData(groupBy: GroupByField[]): Observable<AggregatedData[]> {
-    const cacheKey = TimeBasedCache.generateKey(groupBy);
+  private loadData(
+    groupBy: GroupByField[],
+    page: number
+  ): Observable<PagedAggregatedData> {
+    const cacheKey = this.getCacheKey(groupBy, page);
     const cachedData = this.cache.get(cacheKey);
 
     if (cachedData) {
@@ -126,8 +199,13 @@ export class ActivityService {
     }
 
     this.setLoadingState();
-    return this.apiClient.getAggregated(groupBy).pipe(
-      tap(data => this.cache.set(cacheKey, data))
-    );
+    return this.apiClient
+      .getAggregatedPaged(groupBy, page, this._pageSize())
+      .pipe(tap(data => this.cache.set(cacheKey, data)));
+  }
+
+  private getCacheKey(groupBy: GroupByField[], page: number): string {
+    const groupKey = TimeBasedCache.generateKey(groupBy);
+    return `${groupKey}_page_${page}_size_${this._pageSize()}`;
   }
 }

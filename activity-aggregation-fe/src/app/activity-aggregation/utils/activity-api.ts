@@ -2,13 +2,14 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { retry, catchError } from 'rxjs/operators';
-import { AggregatedData } from '../models/aggregated-data.model';
+import { PagedAggregatedData } from '../models/aggregated-data.model';
 import { API_CONFIG, GroupByField } from '../constants/activity-aggregation';
 import { environment } from '../../../environments/environment';
 
 /**
  * API client for activity aggregation endpoints
  * Follows Repository Pattern - abstracts data access
+ * Supports server-side pagination
  */
 @Injectable({ providedIn: 'root' })
 export class ActivityApiClient {
@@ -16,13 +17,22 @@ export class ActivityApiClient {
   private readonly baseUrl = `${environment.apiBaseUrl}${API_CONFIG.endpoints.activities}`;
 
   /**
-   * Fetch aggregated activities with optional grouping
+   * Fetch paginated aggregated activities with optional grouping
+   * @param groupBy Fields to group by
+   * @param page Page number (0-indexed)
+   * @param size Page size
+   * @param sort Optional sort parameter (e.g., 'hours,desc')
    */
-  getAggregated(groupBy: GroupByField[]): Observable<AggregatedData[]> {
+  getAggregatedPaged(
+    groupBy: GroupByField[],
+    page: number = 0,
+    size: number = 25,
+    sort?: string
+  ): Observable<PagedAggregatedData> {
     const url = `${this.baseUrl}${API_CONFIG.endpoints.aggregate}`;
-    const params = this.buildParams(groupBy);
+    const params = this.buildParams(groupBy, page, size, sort);
 
-    return this.http.get<AggregatedData[]>(url, { params }).pipe(
+    return this.http.get<PagedAggregatedData>(url, { params }).pipe(
       retry({ count: 2, delay: 1000 }),
       catchError((err) => {
         console.error('API fetch error:', err);
@@ -31,13 +41,24 @@ export class ActivityApiClient {
     );
   }
 
-  private buildParams(groupBy: GroupByField[]): HttpParams {
-    let params = new HttpParams();
-    
+  private buildParams(
+    groupBy: GroupByField[],
+    page: number,
+    size: number,
+    sort?: string
+  ): HttpParams {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+
     if (groupBy.length > 0) {
       params = params.set(API_CONFIG.queryParams.groupBy, groupBy.join(','));
     }
-    
+
+    if (sort) {
+      params = params.set('sort', sort);
+    }
+
     return params;
   }
 }

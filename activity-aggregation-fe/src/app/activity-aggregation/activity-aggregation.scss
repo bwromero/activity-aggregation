@@ -122,6 +122,66 @@
   }
 }
 
+// ========== PAGINATION STYLES ==========
+
+.pagination-container {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 0.0625rem solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.pagination-info {
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  padding: var(--spacing-sm);
+  line-height: 1.5;
+}
+
+// Material Paginator overrides (use ::ng-deep sparingly)
+::ng-deep .mat-mdc-paginator {
+  background-color: transparent;
+
+  .mat-mdc-paginator-container {
+    justify-content: center;
+    padding: var(--spacing-md) 0;
+    min-height: 3.5rem;
+  }
+
+  .mat-mdc-paginator-page-size-label,
+  .mat-mdc-paginator-range-label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    margin: 0 var(--spacing-sm);
+  }
+
+  .mat-mdc-paginator-range-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+  }
+
+  // Button styles
+  button {
+    &:not(:disabled) {
+      color: var(--color-primary);
+
+      &:hover {
+        background-color: rgba(63, 81, 181, 0.04);
+      }
+    }
+
+    &:disabled {
+      color: var(--color-text-secondary);
+      opacity: 0.5;
+    }
+  }
+}
+
 // ========== RESPONSIVE DESIGN ==========
 
 @media (max-width: 48rem) { // Mobile breakpoint
@@ -140,6 +200,29 @@
   .no-data {
     min-height: 9.375rem;
     padding: var(--spacing-lg) var(--spacing-md);
+  }
+
+  // Mobile pagination adjustments
+  .pagination-container {
+    margin-top: var(--spacing-md);
+  }
+
+  .pagination-info {
+    font-size: 0.75rem;
+    padding: var(--spacing-xs);
+  }
+
+  ::ng-deep .mat-mdc-paginator {
+    .mat-mdc-paginator-container {
+      flex-wrap: wrap;
+      gap: var(--spacing-xs);
+      padding: var(--spacing-sm) 0;
+    }
+
+    .mat-mdc-paginator-page-size-label,
+    .mat-mdc-paginator-range-label {
+      font-size: 0.75rem;
+    }
   }
 }
 

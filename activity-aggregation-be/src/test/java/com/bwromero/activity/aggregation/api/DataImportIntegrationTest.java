@@ -19,8 +19,8 @@ class DataImportIntegrationTest {
     @Test
     void shouldLoadActivitiesFromCsv() {
         List<Activity> activities = activityRepository.findAll();
-        assertThat(activities).hasSize(6);
-        assertThat(activities).anyMatch(a -> a.getProject().getName().equals("Mars Rover"));
-        assertThat(activities).anyMatch(a -> a.getEmployee().getName().equals("Mario"));
+        assertThat(activities.size()).isGreaterThanOrEqualTo(100_000);
+        assertThat(activities).anyMatch(a -> a.getProject().getName().startsWith("Project "));
+        assertThat(activities).anyMatch(a -> a.getEmployee().getName().startsWith("Employee "));
     }
 }

@@ -14,8 +14,11 @@ import org.springframework.core.io.ClassPathResource;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Configuration
 public class DataInitializer {
@@ -23,31 +26,49 @@ public class DataInitializer {
     @Bean
     CommandLineRunner initDatabase(ActivityRepository actRepo, ProjectRepository projRepo, EmployeeRepository empRepo) {
         return args -> {
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(new ClassPathResource("activities.csv").getInputStream()))) {
-                String line;
-                boolean firstLine = true;
-                Map<String, Project> projects = new HashMap<>();
-                Map<String, Employee> employees = new HashMap<>();
+            // 1. Create a pool of Projects and Employees first
+            List<Project> projects = new ArrayList<>();
+            for (int i = 1; i <= 20; i++) {
+                projects.add(projRepo.save(new Project(null, "Project " + i)));
+            }
 
-                while ((line = reader.readLine()) != null) {
-                    if (firstLine) {
-                        firstLine = false;
-                        continue;
-                    }
-                    String[] parts = line.split(",");
-                    if (parts.length < 4) continue;
+            List<Employee> employees = new ArrayList<>();
+            for (int i = 1; i <= 50; i++) {
+                employees.add(empRepo.save(new Employee(null, "Employee " + i)));
+            }
 
-                    String projectName = parts[0].trim();
-                    String employeeName = parts[1].trim();
-                    String dateStr = parts[2].trim();
-                    int hours = Integer.parseInt(parts[3].trim());
+            // 2. Generate a "shit ton" of activities
+            int totalRows = 100_000;
+            int batchSize = 1000;
+            List<Activity> batch = new ArrayList<>();
 
-                    Project project = projects.computeIfAbsent(projectName, name -> projRepo.save(new Project(null, name)));
-                    Employee employee = employees.computeIfAbsent(employeeName, name -> empRepo.save(new Employee(null, name)));
+            System.out.println("Starting data simulation of " + totalRows + " rows...");
 
-                    actRepo.save(new Activity(project, employee, ZonedDateTime.parse(dateStr), hours));
+            for (int i = 0; i < totalRows; i++) {
+                Project project = projects.get(ThreadLocalRandom.current().nextInt(projects.size()));
+                Employee employee = employees.get(ThreadLocalRandom.current().nextInt(employees.size()));
+                ZonedDateTime randomDate = ZonedDateTime.now().minusDays(ThreadLocalRandom.current().nextInt(365));
+                int hours = ThreadLocalRandom.current().nextInt(1, 10);
+
+                batch.add(Activity.builder()
+                        .project(project)
+                        .employee(employee)
+                        .date(randomDate)
+                        .hours(hours)
+                        .build());
+
+                if (batch.size() >= batchSize) {
+                    actRepo.saveAll(batch);
+                    batch.clear();
+                    if (i % 10_000 == 0) System.out.println("Inserted " + i + " rows...");
                 }
             }
+            
+            if (!batch.isEmpty()) {
+                actRepo.saveAll(batch);
+            }
+
+            System.out.println("Simulation complete!");
         };
     }
 }

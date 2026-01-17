@@ -2,15 +2,21 @@ package com.bwromero.activity.aggregation.api.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.ZonedDateTime;
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
+// ... existing code ...
 @Entity
+@Table(name = "activity", indexes = {
+        @Index(name = "idx_activity_agg", columnList = "project_id, employee_id, date")
+})
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Activity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,11 +30,4 @@ public class Activity {
 
     private ZonedDateTime date;
     private Integer hours;
-
-    public Activity(Project project, Employee employee, ZonedDateTime date, Integer hours) {
-        this.project = project;
-        this.employee = employee;
-        this.date = date;
-        this.hours = hours;
-    }
 }

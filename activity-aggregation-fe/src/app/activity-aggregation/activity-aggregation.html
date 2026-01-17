@@ -27,6 +27,29 @@
           [data]="service.data()"
           [displayedColumns]="service.displayedColumns()"
         />
+
+        <!-- Pagination Controls -->
+        <div class="pagination-container">
+          <mat-paginator
+            [length]="service.totalElements()"
+            [pageSize]="service.pageSize()"
+            [pageSizeOptions]="[10, 25, 50, 100]"
+            [pageIndex]="service.currentPage()"
+            (page)="onPageChange($event)"
+            showFirstLastButtons>
+          </mat-paginator>
+
+          <!-- Pagination Info -->
+          <div class="pagination-info">
+            Showing 
+            {{ (service.currentPage() * service.pageSize()) + 1 }} 
+            to 
+            {{ Math.min((service.currentPage() + 1) * service.pageSize(), service.totalElements()) }}
+            of 
+            {{ service.totalElements() }} 
+            results
+          </div>
+        </div>
       }
 
       @if (service.showNoData()) {
