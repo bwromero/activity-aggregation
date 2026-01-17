@@ -1,12 +1,14 @@
 package com.bwromero.activity.aggregation.api.model;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import java.time.ZonedDateTime;
+import java.sql.Date;
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
+/**
+ * DTO for aggregated activity data.
+ * The field types must match the types projected in ActivityRepositoryImpl.
+ */
 public record ActivityResponse(
-    String project,
-    String employee,
-    ZonedDateTime date,
-    Integer hours
+        String project,
+        String employee,
+        Date date,
+        Integer hours
 ) {}

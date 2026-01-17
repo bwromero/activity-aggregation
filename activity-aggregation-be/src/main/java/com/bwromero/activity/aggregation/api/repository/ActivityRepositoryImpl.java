@@ -31,29 +31,32 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom {
         JPAQueryFactory queryFactory = new JPAQueryFactory(entityManager);
         QActivity activity = QActivity.activity;
 
-        // 1. Define a mapping between Request Strings and the actual QueryDSL Path instances.
-        // This ensures the EXACT SAME object is used in SELECT, GROUP BY, and ORDER BY.
+        // NEW: Truncate timestamp to Date for clean aggregation (removes time redundancy)
+        Expression<java.sql.Date> dateDayPath = Expressions.dateTimeTemplate(java.sql.Date.class, "CAST({0} AS date)", activity.date);
+
+        // 1. Mapping Request Strings to Path Instances (respecting Click Order)
         Map<String, Expression<?>> pathMap = Map.of(
                 "project", activity.project.name,
                 "employee", activity.employee.name,
-                "date", activity.date
+                "date", dateDayPath // Use truncated date here
         );
+
+        List<Expression<?>> groupExpressions = (groupBy == null) ? Collections.emptyList() :
+                groupBy.stream()
+                        .map(String::toLowerCase)
+                        .filter(pathMap::containsKey)
+                        .map(pathMap::get)
+                        .distinct()
+                        .collect(Collectors.toList());
 
         Set<String> activeGroups = (groupBy == null) ? Collections.emptySet() :
                 groupBy.stream().map(String::toLowerCase).collect(Collectors.toSet());
 
-        // 2. Build dynamic Group List based on mapping
-        List<Expression<?>> groupExpressions = activeGroups.stream()
-                .filter(pathMap::containsKey)
-                .map(pathMap::get)
-                .collect(Collectors.toList());
-
-        // 3. Define Projections based on the group context
-        // If no grouping is requested, we show all data (flattened view).
+        // 2. Define Projections (using Typed Nulls for record constructor compatibility)
         boolean showAll = activeGroups.isEmpty();
         Expression<String> projectExpr = (showAll || activeGroups.contains("project")) ? activity.project.name : Expressions.nullExpression(String.class);
         Expression<String> employeeExpr = (showAll || activeGroups.contains("employee")) ? activity.employee.name : Expressions.nullExpression(String.class);
-        Expression<ZonedDateTime> dateExpr = (showAll || activeGroups.contains("date")) ? activity.date : Expressions.nullExpression(ZonedDateTime.class);
+        Expression<java.sql.Date> dateExpr = (showAll || activeGroups.contains("date")) ? dateDayPath : Expressions.nullExpression(java.sql.Date.class);
 
         JPAQuery<ActivityResponse> query = queryFactory
                 .select(Projections.constructor(ActivityResponse.class,
@@ -64,15 +67,15 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom {
                 ))
                 .from(activity);
 
-        // 4. Apply Grouping
+        // 3. Apply Grouping
         if (!groupExpressions.isEmpty()) {
             query.groupBy(groupExpressions.toArray(new Expression[0]));
         } else {
-            // Default "Flattened" view grouping - includes the date path directly
-            query.groupBy(activity.id, activity.project.name, activity.employee.name, activity.date);
+            // Flattened view: group by unique record components including truncated date
+            query.groupBy(activity.id, activity.project.name, activity.employee.name, dateDayPath);
         }
 
-        // 5. Apply Sorting (Type-Safe and Group-Aware)
+        // 4. Apply Sorting
         applyModernSorting(query, activity, pageable, pathMap, groupExpressions);
 
         List<ActivityResponse> content = query
@@ -104,7 +107,9 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom {
         } else {
             // Default Sort: Sort by the first grouping column, or date desc for flat lists
             if (!groupExpressions.isEmpty()) {
-                query.orderBy(new OrderSpecifier(Order.ASC, groupExpressions.get(0)));
+                for (Expression<?> expr : groupExpressions) {
+                    query.orderBy(new OrderSpecifier(Order.ASC, expr));
+                }
             } else {
                 query.orderBy(activity.date.desc());
             }
