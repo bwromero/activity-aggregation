@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, computed, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Subject, switchMap, debounceTime, of, tap, Observable } from 'rxjs';
+import { Subject, switchMap, debounceTime, of, tap, Observable, delay } from 'rxjs';
 import { PageEvent } from '@angular/material/paginator';
 
 import { AggregatedData, PagedAggregatedData } from '../models/aggregated-data.model';
@@ -17,37 +17,28 @@ import { ActivityApiClient } from '../utils/activity-api';
 import { StateHelpers } from '../utils/state.';
 import { PaginationService } from './pagination';
 
-/**
- * Service that handles state management for activity aggregation.
- * Delegates pagination state & logic to PaginationService.
- */
 @Injectable()
 export class ActivityService {
-  // ========== DEPENDENCIES ==========
   private readonly apiClient = inject(ActivityApiClient);
   private readonly pagination = inject(PaginationService);
   private readonly destroyRef = inject(DestroyRef);
 
-  // ========== CONFIGURATION ==========
   private readonly cache = new TimeBasedCache<PagedAggregatedData>(5 * 60 * 1000);
   private readonly loadTrigger$ = new Subject<{
     groupBy: GroupByField[];
     page: number;
   }>();
 
-  // ========== PRIVATE STATE ==========
   private readonly _data = signal<AggregatedData[]>([]);
   private readonly _loading = signal(false);
   private readonly _error = signal<string | null>(null);
   private readonly _selectedFields = signal<GroupByField[]>([]);
 
-  // ========== PUBLIC STATE ==========
   readonly data = this._data.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
   readonly selectedFields = this._selectedFields.asReadonly();
 
-  // Pagination (delegated)
   readonly currentPage = this.pagination.currentPage;
   readonly pageSize = this.pagination.pageSize;
   readonly totalElements = this.pagination.totalElements;
@@ -55,7 +46,6 @@ export class ActivityService {
   readonly hasNextPage = this.pagination.hasNextPage;
   readonly hasPreviousPage = this.pagination.hasPreviousPage;
 
-  // ========== COMPUTED STATE ==========
   readonly displayedColumns = computed(() =>
     this._selectedFields().length === 0
       ? DEFAULT_COLUMNS
@@ -73,31 +63,20 @@ export class ActivityService {
     StateHelpers.showNoData(this._loading(), this._error(), this._data().length)
   );
 
-  // ========== INITIALIZATION ==========
   constructor() {
     this.initializeLoadPipeline();
   }
 
-  // ========== PUBLIC API ==========
-
-  /**
-   * Toggle field selection (resets pagination)
-   */
   toggleField(field: GroupByField): void {
     this.updateSelectedFields(field);
     this.pagination.reset();
     this.triggerDataLoad();
   }
 
-  /**
-   * Handle MatPaginator events
-   */
   handlePageEvent(event: PageEvent): void {
     this.pagination.handlePageEvent(event);
     this.triggerDataLoad();
   }
-
-  // ========== PRIVATE METHODS ==========
 
   private updateSelectedFields(field: GroupByField): void {
     this._selectedFields.update(current =>
@@ -136,6 +115,7 @@ export class ActivityService {
   }
 
   private initializeLoadPipeline(): void {
+    this._loading.set(true);
     this.loadTrigger$
       .pipe(
         debounceTime(150),
@@ -147,7 +127,6 @@ export class ActivityService {
         error: err => this.setErrorState(err)
       });
 
-    // Initial load
     this.triggerDataLoad();
   }
 
@@ -158,13 +137,14 @@ export class ActivityService {
     const cacheKey = this.getCacheKey(groupBy, page);
     const cachedData = this.cache.get(cacheKey);
 
+    this.setLoadingState();
     if (cachedData) {
       this._loading.set(false);
       this._error.set(null);
       return of(cachedData);
     }
 
-    this.setLoadingState();
+
     return this.apiClient
       .getAggregatedPaged(groupBy, page, this.pagination.pageSize())
       .pipe(tap(data => this.cache.set(cacheKey, data)));
