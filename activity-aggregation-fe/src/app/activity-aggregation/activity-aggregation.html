@@ -13,13 +13,13 @@
       />
 
       @if (service.loading()) {
-        <div class="loading">
+        <div class="aggregation-card__loading">
           <mat-spinner [diameter]="UI_CONFIG.spinner.diameter"></mat-spinner>
         </div>
       }
 
       @if (service.error()) {
-        <div class="error">{{ service.error() }}</div>
+        <div class="aggregation-card__error">{{ service.error() }}</div>
       }
 
       @if (service.hasData()) {
@@ -29,7 +29,7 @@
         />
 
         <!-- Pagination Controls -->
-        <div class="pagination-container">
+        <div class="aggregation-card__pagination">
           <mat-paginator
             [length]="service.totalElements()"
             [pageSize]="service.pageSize()"
@@ -40,7 +40,7 @@
           </mat-paginator>
 
           <!-- Pagination Info -->
-          <div class="pagination-info">
+          <div class="aggregation-card__pagination-info">
             Showing 
             {{ (service.currentPage() * service.pageSize()) + 1 }} 
             to 
@@ -53,7 +53,7 @@
       }
 
       @if (service.showNoData()) {
-        <div class="no-data">{{ UI_CONFIG.messages.noData }}</div>
+        <div class="aggregation-card__no-data">{{ UI_CONFIG.messages.noData }}</div>
       }
     </mat-card-content>
   </mat-card>

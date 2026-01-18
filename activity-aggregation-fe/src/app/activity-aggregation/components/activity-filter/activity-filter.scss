@@ -1,13 +1,26 @@
-.aggregation-options {
+.activity-filter {
   display: flex;
   gap: var(--spacing-xl);
   margin: var(--spacing-lg) 0;
   flex-wrap: wrap;
   align-items: center;
 
-  ::ng-deep .mat-mdc-checkbox {
-    .mdc-form-field {
-      font-size: var(--font-size-base);
+  &__checkbox {
+    ::ng-deep .mat-mdc-checkbox {
+      .mdc-form-field {
+        font-size: var(--font-size-base);
+      }
+
+      &:hover {
+        .mdc-checkbox__background {
+          transition: background-color var(--transition-fast);
+        }
+      }
     }
+  }
+
+  @media (max-width: 48rem) {
+    gap: var(--spacing-md);
+    margin: var(--spacing-md) 0;
   }
 }
