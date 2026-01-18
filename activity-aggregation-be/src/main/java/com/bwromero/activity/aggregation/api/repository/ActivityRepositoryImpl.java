@@ -26,15 +26,12 @@ public class ActivityRepositoryImpl implements ActivityRepositoryCustom {
         JPAQueryFactory queryFactory = new JPAQueryFactory(entityManager);
         QActivity activity = QActivity.activity;
 
-        // Truncated date is the foundation of our aggregation
         Expression<java.sql.Date> dateDayPath = Expressions.dateTimeTemplate(java.sql.Date.class, "CAST({0} AS date)", activity.date);
 
-        // Resolve dynamic grouping and projection state
         Map<String, Expression<?>> pathMap = createPathMap(activity, dateDayPath);
         List<Expression<?>> groupExpressions = resolveGroupExpressions(groupBy, pathMap);
         Set<String> activeGroups = resolveActiveGroupNames(groupBy);
 
-        // Build and execute the query
         JPAQuery<ActivityResponse> query = queryFactory
                 .select(createProjection(activity, dateDayPath, activeGroups))
                 .from(activity);

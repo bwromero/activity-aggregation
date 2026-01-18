@@ -12,7 +12,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private final DataSeedService seedService;
 
-    @Value("${app.seed.use-demo:true}") // Default to demo data
+    @Value("${app.seed.use-demo:true}")
     private boolean useDemo;
 
     @Value("${app.seed.total-rows:100000}")

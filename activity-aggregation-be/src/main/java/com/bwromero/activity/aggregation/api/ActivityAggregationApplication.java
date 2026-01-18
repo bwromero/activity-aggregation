@@ -21,11 +21,6 @@ public class ActivityAggregationApplication {
     static void main(String[] args) {
         SpringApplication.run(ActivityAggregationApplication.class, args);
     }
-
-    /**
-     * Manual configuration of Caffeine Cache Manager.
-     * This provides high-performance in-memory caching for our aggregation results.
-     */
     @Bean
     public CacheManager cacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager("activities");

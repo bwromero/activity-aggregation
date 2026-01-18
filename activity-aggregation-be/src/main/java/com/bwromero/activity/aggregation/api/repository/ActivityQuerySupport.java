@@ -47,7 +47,6 @@ public class ActivityQuerySupport {
         if (!groups.isEmpty()) {
             query.groupBy(groups.toArray(Expression[]::new));
         } else {
-            // Flattened view: group by all metadata to maintain strict SQL compatibility
             query.groupBy(activity.id, activity.project.name, activity.employee.name, dateDayPath);
         }
     }
@@ -81,9 +80,6 @@ public class ActivityQuerySupport {
 
     private static void applyDefaultSort(JPAQuery<?> query, QActivity activity, List<Expression<?>> groups) {
         if (!groups.isEmpty()) {
-            // CHALLENGE DEEP FIX: To match the PDF's 'Natural Order', we sort by the 
-            // MIN ID of the entities in the exact order they were selected. 
-            // Since ID 1 (Mars Rover/Mario) was created first, this puts them at the top.
             for (Expression<?> expr : groups) {
                 if (expr.toString().contains("employee")) {
                     query.orderBy(activity.employee.id.min().asc());
@@ -94,10 +90,8 @@ public class ActivityQuerySupport {
                 }
             }
             
-            // Secondary sort: High hours first within those natural groups
             query.orderBy(new OrderSpecifier<>(Order.DESC, activity.hours.sum()));
         } else {
-            // Flattened view matches activity insertion order
             query.orderBy(activity.id.asc());
         }
     }

@@ -43,17 +43,14 @@ public class DataSeedService {
 
     private void seedHumanDemoData() {
         log.info("Seeding human-readable demo data from challenge...");
-        
-        // Projects
+
         Project marsRover = projRepo.save(new Project(null, "Mars Rover"));
         Project manhattan = projRepo.save(new Project(null, "Manhattan"));
 
-        // Employees
         Employee mario = empRepo.save(new Employee(null, "Mario"));
         Employee giovanni = empRepo.save(new Employee(null, "Giovanni"));
         Employee lucia = empRepo.save(new Employee(null, "Lucia"));
 
-        // Use fixed dates from the PDF (Aug/Sep 2021)
         ZonedDateTime aug27 = ZonedDateTime.parse("2021-08-27T10:00:00Z");
         ZonedDateTime aug31 = ZonedDateTime.parse("2021-08-31T10:00:00Z");
         ZonedDateTime sep01 = ZonedDateTime.parse("2021-09-01T10:00:00Z");
