@@ -6,23 +6,11 @@ import { PagedAggregatedData } from '../models/aggregated-data.model';
 import { API_CONFIG, GroupByField } from '../constants/activity-aggregation';
 import { environment } from '../../../environments/environment';
 
-/**
- * API client for activity aggregation endpoints
- * Follows Repository Pattern - abstracts data access
- * Supports server-side pagination
- */
 @Injectable({ providedIn: 'root' })
 export class ActivityApiClient {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiBaseUrl}${API_CONFIG.endpoints.activities}`;
 
-  /**
-   * Fetch paginated aggregated activities with optional grouping
-   * @param groupBy Fields to group by
-   * @param page Page number (0-indexed)
-   * @param size Page size
-   * @param sort Optional sort parameter (e.g., 'hours,desc')
-   */
   getAggregatedPaged(
     groupBy: GroupByField[],
     page: number = 0,

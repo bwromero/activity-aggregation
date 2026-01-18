@@ -4,22 +4,15 @@ export interface AggregatedData {
   date?: string;
   hours: number;
 }
-
-/**
- * Paginated response from backend (Spring Boot Page interface)
- */
 export interface PagedResponse<T> {
   content: T[];
   totalElements: number;
   totalPages: number;
-  number: number;        // Current page (0-indexed)
-  size: number;          // Page size
+  number: number;
+  size: number;
   first: boolean;
   last: boolean;
   empty: boolean;
 }
 
-/**
- * Type alias for paginated aggregated data
- */
 export type PagedAggregatedData = PagedResponse<AggregatedData>;

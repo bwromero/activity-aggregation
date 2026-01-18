@@ -9,7 +9,7 @@ import { DatePipe } from '@angular/common';
   imports: [MatTableModule, DatePipe],
   templateUrl: './activity-table.html',
   styleUrl: './activity-table.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush 
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ActivityTableComponent {
   protected readonly ACTIVITY_FIELDS = ACTIVITY_FIELDS;
@@ -19,8 +19,6 @@ export class ActivityTableComponent {
   readonly displayedColumns = input.required<ActivityField[]>();
 
   trackById(index: number, item: AggregatedData): string {
-    // We create a unique key based on the visible fields.
-    // If these values are the same, the row is effectively the same.
     return `${item.project}-${item.employee}-${item.date}`;
-}
+  }
 }

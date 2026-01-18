@@ -1,12 +1,8 @@
-// Activity Table Component Styles
-// Uses SCSS nesting, & operator, and design tokens
-
 .table-container {
   margin-top: var(--spacing-lg);
   overflow-x: auto;
   border-radius: var(--border-radius-md);
 
-  // Smooth scrollbar (WebKit browsers)
   &::-webkit-scrollbar {
     height: 0.5rem;
   }
@@ -29,7 +25,6 @@
   width: 100%;
   border-collapse: collapse;
 
-  // Table header cells
   th {
     font-weight: var(--font-weight-semibold);
     background-color: var(--color-border-light);
@@ -45,7 +40,6 @@
     }
   }
 
-  // Table data cells
   td {
     padding: var(--spacing-md);
     font-size: var(--font-size-base);
@@ -54,7 +48,6 @@
     transition: background-color var(--transition-fast);
   }
 
-  // Table rows
   tr {
     transition: background-color var(--transition-fast);
 
@@ -67,7 +60,6 @@
     }
   }
 
-  // Hours column (centered)
   .mat-column-hours,
   .hours-cell {
     text-align: center;
@@ -76,9 +68,9 @@
   }
 }
 
-// Responsive adjustments
-@media (max-width: 48rem) { // Mobile breakpoint
+@media (max-width: 48rem) {
   .activity-table {
+
     th,
     td {
       padding: var(--spacing-sm);

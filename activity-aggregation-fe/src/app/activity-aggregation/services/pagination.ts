@@ -3,25 +3,21 @@ import { PageEvent } from '@angular/material/paginator';
 
 @Injectable()
 export class PaginationService {
-  // ========== STATE ==========
   private readonly _currentPage = signal(0);
   private readonly _pageSize = signal(25);
   private readonly _totalElements = signal(0);
   private readonly _totalPages = signal(0);
 
-  // ========== READONLY STATE ==========
   readonly currentPage = this._currentPage.asReadonly();
   readonly pageSize = this._pageSize.asReadonly();
   readonly totalElements = this._totalElements.asReadonly();
   readonly totalPages = this._totalPages.asReadonly();
 
-  // ========== COMPUTED ==========
   readonly hasPreviousPage = computed(() => this._currentPage() > 0);
   readonly hasNextPage = computed(
     () => this._currentPage() < this._totalPages() - 1
   );
 
-  // ========== COMMANDS ==========
   goToPage(page: number): void {
     if (page >= 0 && page < this._totalPages()) {
       this._currentPage.set(page);
@@ -57,7 +53,6 @@ export class PaginationService {
     }
   }
 
-  // ========== SYNC FROM API ==========
   updateFromResponse(response: {
     totalElements: number;
     totalPages: number;
