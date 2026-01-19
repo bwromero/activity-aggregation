@@ -20,9 +20,6 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (seedService.isDatabaseEmpty()) {
-            seedService.seedDatabase(totalRows, 5000, useDemo);
-        } else {
-        }
+        seedService.resetAndSeedDatabase(totalRows, 5000, useDemo);
     }
 }
