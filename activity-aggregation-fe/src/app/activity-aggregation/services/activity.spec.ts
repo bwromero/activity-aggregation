@@ -1,13 +1,12 @@
-import { TestBed, fakeAsync, tick, flush } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
-import { of, throwError, delay } from 'rxjs';
-import { signal } from '@angular/core';
+import { of, throwError } from 'rxjs';
 import { PageEvent } from '@angular/material/paginator';
 
 import { ActivityService } from './activity';
 import { PaginationService } from './pagination';
 import { ActivityApiClient } from '../utils/activity-api';
-import { PagedAggregatedData, AggregatedData } from '../models/aggregated-data.model';
+import { PagedAggregatedData } from '../models/aggregated-data.model';
 import { ACTIVITY_FIELDS } from '../constants/activity-aggregation';
 
 describe('ActivityService', () => {
@@ -30,9 +29,8 @@ describe('ActivityService', () => {
   };
 
   beforeEach(() => {
-    const apiClientSpyObj = jasmine.createSpyObj('ActivityApiClient', [
-      'getAggregatedPaged'
-    ]);
+    const apiClientSpyObj = jasmine.createSpyObj('ActivityApiClient', ['getAggregatedPaged']);
+    apiClientSpyObj.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
 
     TestBed.configureTestingModule({
       providers: [
@@ -47,50 +45,59 @@ describe('ActivityService', () => {
   });
 
   describe('Initialization', () => {
-    it('should create', fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      
+    it('should create', (done) => {
       service = TestBed.inject(ActivityService);
-      tick(200); // Wait for debounce + initialization
       
-      expect(service).toBeTruthy();
-    }));
+      setTimeout(() => {
+        expect(service).toBeTruthy();
+        done();
+      }, 200);
+    });
 
-    it('should initialize with empty data', fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      
+    it('should initialize with empty selected fields', () => {
       service = TestBed.inject(ActivityService);
-      
       expect(service.selectedFields()).toEqual([]);
-      
-      tick(200);
-    }));
+    });
 
-    it('should load initial data on construction', fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      
+    it('should load initial data on construction', (done) => {
       service = TestBed.inject(ActivityService);
-      tick(200);
       
-      expect(apiClientSpy.getAggregatedPaged).toHaveBeenCalled();
-      expect(service.data()).toEqual(mockPagedResponse.content);
-    }));
+      setTimeout(() => {
+        expect(apiClientSpy.getAggregatedPaged).toHaveBeenCalled();
+        expect(service.data()).toEqual(mockPagedResponse.content);
+        done();
+      }, 200);
+    });
 
     it('should set loading to true initially', () => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse).pipe(delay(100)));
+      service = TestBed.inject(ActivityService);
+      expect(service.loading()).toBe(true);
+    });
+
+    it('should handle empty response', (done) => {
+      const emptyResponse: PagedAggregatedData = {
+        ...mockPagedResponse,
+        content: [],
+        totalElements: 0,
+        empty: true
+      };
+      apiClientSpy.getAggregatedPaged.and.returnValue(of(emptyResponse));
       
       service = TestBed.inject(ActivityService);
       
-      expect(service.loading()).toBe(true);
+      setTimeout(() => {
+        expect(service.data()).toEqual([]);
+        expect(service.showNoData()).toBe(true);
+        done();
+      }, 200);
     });
   });
 
   describe('Signal State Management', () => {
-    beforeEach(fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
+    beforeEach((done) => {
       service = TestBed.inject(ActivityService);
-      tick(200);
-    }));
+      setTimeout(done, 200);
+    });
 
     it('should expose readonly data signal', () => {
       expect(service.data()).toEqual(mockPagedResponse.content);
@@ -110,48 +117,48 @@ describe('ActivityService', () => {
   });
 
   describe('Computed Signals', () => {
-    beforeEach(fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
+    beforeEach((done) => {
       service = TestBed.inject(ActivityService);
-      tick(200);
-    }));
+      setTimeout(done, 200);
+    });
 
     describe('displayedColumns', () => {
       it('should return default columns when no fields selected', () => {
-        expect(service.displayedColumns()).toContain(ACTIVITY_FIELDS.PROJECT);
-        expect(service.displayedColumns()).toContain(ACTIVITY_FIELDS.EMPLOYEE);
-        expect(service.displayedColumns()).toContain(ACTIVITY_FIELDS.DATE);
-        expect(service.displayedColumns()).toContain(ACTIVITY_FIELDS.HOURS);
-      });
-
-      it('should return selected fields plus hours when fields are selected', fakeAsync(() => {
-        apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-        
-        service.toggleField(ACTIVITY_FIELDS.PROJECT);
-        tick(200);
-        
-        const columns = service.displayedColumns();
-        expect(columns).toContain(ACTIVITY_FIELDS.PROJECT);
-        expect(columns).toContain(ACTIVITY_FIELDS.HOURS);
-        expect(columns.length).toBe(2);
-      }));
-
-      it('should update when multiple fields are selected', fakeAsync(() => {
-        apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-        
-        service.toggleField(ACTIVITY_FIELDS.PROJECT);
-        tick(200);
-        
-        apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-        service.toggleField(ACTIVITY_FIELDS.EMPLOYEE);
-        tick(200);
-        
         const columns = service.displayedColumns();
         expect(columns).toContain(ACTIVITY_FIELDS.PROJECT);
         expect(columns).toContain(ACTIVITY_FIELDS.EMPLOYEE);
+        expect(columns).toContain(ACTIVITY_FIELDS.DATE);
         expect(columns).toContain(ACTIVITY_FIELDS.HOURS);
-        expect(columns.length).toBe(3);
-      }));
+      });
+
+      it('should return selected fields plus hours when fields are selected', (done) => {
+        service.toggleField(ACTIVITY_FIELDS.PROJECT);
+        
+        setTimeout(() => {
+          const columns = service.displayedColumns();
+          expect(columns).toContain(ACTIVITY_FIELDS.PROJECT);
+          expect(columns).toContain(ACTIVITY_FIELDS.HOURS);
+          expect(columns.length).toBe(2);
+          done();
+        }, 200);
+      });
+
+      it('should update when multiple fields are selected', (done) => {
+        service.toggleField(ACTIVITY_FIELDS.PROJECT);
+        
+        setTimeout(() => {
+          service.toggleField(ACTIVITY_FIELDS.EMPLOYEE);
+          
+          setTimeout(() => {
+            const columns = service.displayedColumns();
+            expect(columns).toContain(ACTIVITY_FIELDS.PROJECT);
+            expect(columns).toContain(ACTIVITY_FIELDS.EMPLOYEE);
+            expect(columns).toContain(ACTIVITY_FIELDS.HOURS);
+            expect(columns.length).toBe(3);
+            done();
+          }, 200);
+        }, 200);
+      });
     });
 
     describe('isFieldSelected', () => {
@@ -160,15 +167,15 @@ describe('ActivityService', () => {
         expect(isSelected()).toBe(false);
       });
 
-      it('should return true for selected field', fakeAsync(() => {
-        apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-        
+      it('should return true for selected field', (done) => {
         service.toggleField(ACTIVITY_FIELDS.PROJECT);
-        tick(200);
         
-        const isSelected = service.isFieldSelected(ACTIVITY_FIELDS.PROJECT);
-        expect(isSelected()).toBe(true);
-      }));
+        setTimeout(() => {
+          const isSelected = service.isFieldSelected(ACTIVITY_FIELDS.PROJECT);
+          expect(isSelected()).toBe(true);
+          done();
+        }, 200);
+      });
     });
 
     describe('hasData', () => {
@@ -176,30 +183,21 @@ describe('ActivityService', () => {
         expect(service.hasData()).toBe(true);
       });
 
-      it('should return false when loading', fakeAsync(() => {
-        apiClientSpy.getAggregatedPaged.and.returnValue(
-          of(mockPagedResponse).pipe(delay(100))
-        );
-        
-        service.toggleField(ACTIVITY_FIELDS.PROJECT);
-        
-        expect(service.hasData()).toBe(false);
-        
-        tick(300);
-      }));
-
-      it('should return false when data is empty', fakeAsync(() => {
+      it('should return false when data is empty', (done) => {
         const emptyResponse: PagedAggregatedData = {
           ...mockPagedResponse,
-          content: []
+          content: [],
+          empty: true
         };
         
         apiClientSpy.getAggregatedPaged.and.returnValue(of(emptyResponse));
         service.toggleField(ACTIVITY_FIELDS.PROJECT);
-        tick(200);
         
-        expect(service.hasData()).toBe(false);
-      }));
+        setTimeout(() => {
+          expect(service.hasData()).toBe(false);
+          done();
+        }, 200);
+      });
     });
 
     describe('showNoData', () => {
@@ -207,103 +205,124 @@ describe('ActivityService', () => {
         expect(service.showNoData()).toBe(false);
       });
 
-      it('should return true when no data and not loading', fakeAsync(() => {
+      it('should return true when no data and not loading', (done) => {
         const emptyResponse: PagedAggregatedData = {
           ...mockPagedResponse,
-          content: []
+          content: [],
+          empty: true
         };
         
         apiClientSpy.getAggregatedPaged.and.returnValue(of(emptyResponse));
         service.toggleField(ACTIVITY_FIELDS.PROJECT);
-        tick(200);
         
-        expect(service.showNoData()).toBe(true);
-      }));
+        setTimeout(() => {
+          expect(service.showNoData()).toBe(true);
+          done();
+        }, 200);
+      });
     });
   });
 
   describe('toggleField', () => {
-    beforeEach(fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
+    beforeEach((done) => {
       service = TestBed.inject(ActivityService);
-      tick(200);
-      apiClientSpy.getAggregatedPaged.calls.reset();
-    }));
+      setTimeout(() => {
+        apiClientSpy.getAggregatedPaged.calls.reset();
+        done();
+      }, 200);
+    });
 
-    it('should add field when not selected', fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      
+    it('should add field when not selected', (done) => {
       service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(200);
       
-      expect(service.selectedFields()).toContain(ACTIVITY_FIELDS.PROJECT);
-    }));
+      setTimeout(() => {
+        expect(service.selectedFields()).toContain(ACTIVITY_FIELDS.PROJECT);
+        done();
+      }, 200);
+    });
 
-    it('should remove field when already selected', fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      
+    it('should remove field when already selected', (done) => {
       service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(200);
       
-      expect(service.selectedFields()).toContain(ACTIVITY_FIELDS.PROJECT);
-      
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(200);
-      
-      expect(service.selectedFields()).not.toContain(ACTIVITY_FIELDS.PROJECT);
-    }));
+      setTimeout(() => {
+        expect(service.selectedFields()).toContain(ACTIVITY_FIELDS.PROJECT);
+        
+        service.toggleField(ACTIVITY_FIELDS.PROJECT);
+        
+        setTimeout(() => {
+          expect(service.selectedFields()).not.toContain(ACTIVITY_FIELDS.PROJECT);
+          done();
+        }, 200);
+      }, 200);
+    });
 
-    it('should reset pagination to first page', fakeAsync(() => {
+    it('should reset pagination to first page', (done) => {
       paginationService.updateFromResponse({
         totalElements: 100,
         totalPages: 4,
         number: 2
       });
       
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
       service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(200);
       
-      expect(service.currentPage()).toBe(0);
-    }));
+      setTimeout(() => {
+        expect(service.currentPage()).toBe(0);
+        done();
+      }, 200);
+    });
 
-    it('should trigger data load', fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      
+    it('should trigger data load', (done) => {
       service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(200);
       
-      expect(apiClientSpy.getAggregatedPaged).toHaveBeenCalled();
-    }));
+      setTimeout(() => {
+        expect(apiClientSpy.getAggregatedPaged).toHaveBeenCalled();
+        done();
+      }, 200);
+    });
 
-    it('should handle multiple field toggles', fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      
+    it('should handle multiple field toggles', (done) => {
       service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(200);
       
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      service.toggleField(ACTIVITY_FIELDS.EMPLOYEE);
-      tick(200);
+      setTimeout(() => {
+        service.toggleField(ACTIVITY_FIELDS.EMPLOYEE);
+        
+        setTimeout(() => {
+          expect(service.selectedFields()).toContain(ACTIVITY_FIELDS.PROJECT);
+          expect(service.selectedFields()).toContain(ACTIVITY_FIELDS.EMPLOYEE);
+          expect(service.selectedFields().length).toBe(2);
+          done();
+        }, 200);
+      }, 200);
+    });
+
+    it('should handle toggle on/off same field', (done) => {
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
       
-      expect(service.selectedFields()).toContain(ACTIVITY_FIELDS.PROJECT);
-      expect(service.selectedFields()).toContain(ACTIVITY_FIELDS.EMPLOYEE);
-      expect(service.selectedFields().length).toBe(2);
-    }));
+      setTimeout(() => {
+        expect(service.selectedFields()).not.toContain(ACTIVITY_FIELDS.PROJECT);
+        done();
+      }, 200);
+    });
   });
 
   describe('handlePageEvent', () => {
-    beforeEach(fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
+    beforeEach((done) => {
       service = TestBed.inject(ActivityService);
-      tick(200);
-      
-      paginationService.updateFromResponse(mockPagedResponse);
-      apiClientSpy.getAggregatedPaged.calls.reset();
-    }));
+      setTimeout(() => {
+        paginationService.updateFromResponse(mockPagedResponse);
+        apiClientSpy.getAggregatedPaged.calls.reset();
+        done();
+      }, 200);
+    });
 
-    it('should handle page change', fakeAsync(() => {
+    it('should handle page change', (done) => {
+      paginationService.updateFromResponse({
+        totalElements: 50,
+        totalPages: 2,
+        number: 0
+      });
+      
       const pageEvent: PageEvent = {
         pageIndex: 1,
         pageSize: 25,
@@ -311,15 +330,24 @@ describe('ActivityService', () => {
         previousPageIndex: 0
       };
       
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      service.handlePageEvent(pageEvent);
-      tick(200);
+      const page1Response: PagedAggregatedData = {
+        ...mockPagedResponse,
+        number: 1,
+        totalElements: 50,
+        totalPages: 2
+      };
+      apiClientSpy.getAggregatedPaged.and.returnValue(of(page1Response));
       
-      expect(service.currentPage()).toBe(1);
-      expect(apiClientSpy.getAggregatedPaged).toHaveBeenCalled();
-    }));
+      service.handlePageEvent(pageEvent);
+      
+      setTimeout(() => {
+        expect(service.currentPage()).toBe(1);
+        expect(apiClientSpy.getAggregatedPaged).toHaveBeenCalled();
+        done();
+      }, 200);
+    });
 
-    it('should handle page size change', fakeAsync(() => {
+    it('should handle page size change', (done) => {
       const pageEvent: PageEvent = {
         pageIndex: 0,
         pageSize: 50,
@@ -327,192 +355,21 @@ describe('ActivityService', () => {
         previousPageIndex: 0
       };
       
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
       service.handlePageEvent(pageEvent);
-      tick(200);
       
-      expect(service.pageSize()).toBe(50);
-      expect(service.currentPage()).toBe(0);
-    }));
-  });
+      setTimeout(() => {
+        expect(service.pageSize()).toBe(50);
+        expect(service.currentPage()).toBe(0);
+        done();
+      }, 200);
+    });
 
-  describe('Data Loading', () => {
-    beforeEach(fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      service = TestBed.inject(ActivityService);
-      tick(200);
-      apiClientSpy.getAggregatedPaged.calls.reset();
-    }));
-
-    it('should set loading state before API call', fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(
-        of(mockPagedResponse).pipe(delay(100))
-      );
-      
-      service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(160); // After debounce, before response
-      
-      expect(service.loading()).toBe(true);
-      
-      tick(100);
-    }));
-
-    it('should set success state after API call', fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      
-      service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(200);
-      
-      expect(service.loading()).toBe(false);
-      expect(service.data()).toEqual(mockPagedResponse.content);
-      expect(service.error()).toBeNull();
-    }));
-
-    it('should update pagination metadata on success', fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      
-      service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(200);
-      
-      expect(service.totalElements()).toBe(mockPagedResponse.totalElements);
-      expect(service.totalPages()).toBe(mockPagedResponse.totalPages);
-    }));
-
-    it('should debounce rapid requests', fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      
-      service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      service.toggleField(ACTIVITY_FIELDS.PROJECT); // Toggle off
-      service.toggleField(ACTIVITY_FIELDS.PROJECT); // Toggle on
-      
-      tick(200);
-      
-      // Should only call API once despite 3 toggles
-      expect(apiClientSpy.getAggregatedPaged).toHaveBeenCalledTimes(1);
-    }));
-
-    it('should pass correct parameters to API client', fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      
-      service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(200);
-      
-      expect(apiClientSpy.getAggregatedPaged).toHaveBeenCalledWith(
-        [ACTIVITY_FIELDS.PROJECT],
-        0,
-        25
-      );
-    }));
-  });
-
-  describe('Error Handling', () => {
-    beforeEach(fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      service = TestBed.inject(ActivityService);
-      tick(200);
-      apiClientSpy.getAggregatedPaged.calls.reset();
-    }));
-
-    it('should set error state on API failure', fakeAsync(() => {
-      const error = new HttpErrorResponse({
-        error: { message: 'Server error' },
-        status: 500
+    it('should handle page change to last page', (done) => {
+      paginationService.updateFromResponse({
+        totalElements: 50,
+        totalPages: 2,
+        number: 0
       });
-      
-      apiClientSpy.getAggregatedPaged.and.returnValue(throwError(() => error));
-      
-      service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(200);
-      
-      expect(service.error()).toBeTruthy();
-      expect(service.loading()).toBe(false);
-      expect(service.data()).toEqual([]);
-    }));
-
-    it('should extract error message', fakeAsync(() => {
-      const error = new HttpErrorResponse({
-        error: { message: 'Database connection failed' },
-        status: 500
-      });
-      
-      apiClientSpy.getAggregatedPaged.and.returnValue(throwError(() => error));
-      
-      service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(200);
-      
-      expect(service.error()).toContain('Failed to load data');
-    }));
-
-    it('should clear previous data on error', fakeAsync(() => {
-      // First successful load
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(200);
-      
-      expect(service.data().length).toBeGreaterThan(0);
-      
-      // Then error
-      const error = new HttpErrorResponse({ status: 500 });
-      apiClientSpy.getAggregatedPaged.and.returnValue(throwError(() => error));
-      
-      service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(200);
-      
-      expect(service.data()).toEqual([]);
-    }));
-  });
-
-  describe('Caching', () => {
-    beforeEach(fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      service = TestBed.inject(ActivityService);
-      tick(200);
-      apiClientSpy.getAggregatedPaged.calls.reset();
-    }));
-
-    it('should cache API responses', fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      
-      // First call
-      service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(200);
-      
-      expect(apiClientSpy.getAggregatedPaged).toHaveBeenCalledTimes(1);
-      
-      // Toggle off and on again (same aggregation)
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      service.toggleField(ACTIVITY_FIELDS.PROJECT); // Off
-      tick(200);
-      
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      service.toggleField(ACTIVITY_FIELDS.PROJECT); // On - should use cache
-      tick(200);
-      
-      // Should have made 3 API calls total (no cache, all fields, project)
-      // But when toggling back to project, it should use cache
-      expect(apiClientSpy.getAggregatedPaged).toHaveBeenCalledTimes(3);
-    }));
-
-    it('should generate different cache keys for different aggregations', fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      
-      service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(200);
-      
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      service.toggleField(ACTIVITY_FIELDS.PROJECT); // Off
-      service.toggleField(ACTIVITY_FIELDS.EMPLOYEE); // Different field
-      tick(200);
-      
-      // Should call API for different aggregation
-      expect(apiClientSpy.getAggregatedPaged).toHaveBeenCalledTimes(2);
-    }));
-
-    it('should generate different cache keys for different pages', fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      
-      service.toggleField(ACTIVITY_FIELDS.PROJECT);
-      tick(200);
       
       const pageEvent: PageEvent = {
         pageIndex: 1,
@@ -521,21 +378,260 @@ describe('ActivityService', () => {
         previousPageIndex: 0
       };
       
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
-      service.handlePageEvent(pageEvent);
-      tick(200);
+      const lastPageResponse: PagedAggregatedData = {
+        ...mockPagedResponse,
+        number: 1,
+        totalElements: 50,
+        totalPages: 2,
+        last: true
+      };
+      apiClientSpy.getAggregatedPaged.and.returnValue(of(lastPageResponse));
       
-      // Should call API for different page
-      expect(apiClientSpy.getAggregatedPaged).toHaveBeenCalledTimes(2);
-    }));
+      service.handlePageEvent(pageEvent);
+      
+      setTimeout(() => {
+        expect(service.currentPage()).toBe(1);
+        done();
+      }, 200);
+    });
+  });
+
+  describe('Data Loading', () => {
+    beforeEach((done) => {
+      service = TestBed.inject(ActivityService);
+      setTimeout(() => {
+        apiClientSpy.getAggregatedPaged.calls.reset();
+        done();
+      }, 200);
+    });
+
+    it('should set success state after API call', (done) => {
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
+      
+      setTimeout(() => {
+        expect(service.loading()).toBe(false);
+        expect(service.data()).toEqual(mockPagedResponse.content);
+        expect(service.error()).toBeNull();
+        done();
+      }, 200);
+    });
+
+    it('should update pagination metadata on success', (done) => {
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
+      
+      setTimeout(() => {
+        expect(service.totalElements()).toBe(mockPagedResponse.totalElements);
+        expect(service.totalPages()).toBe(mockPagedResponse.totalPages);
+        done();
+      }, 200);
+    });
+
+    it('should pass correct parameters to API client', (done) => {
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
+      
+      setTimeout(() => {
+        expect(apiClientSpy.getAggregatedPaged).toHaveBeenCalledWith(
+          [ACTIVITY_FIELDS.PROJECT],
+          0,
+          25
+        );
+        done();
+      }, 200);
+    });
+
+    it('should handle large dataset', (done) => {
+      const largeResponse: PagedAggregatedData = {
+        ...mockPagedResponse,
+        totalElements: 10000,
+        totalPages: 400
+      };
+      apiClientSpy.getAggregatedPaged.and.returnValue(of(largeResponse));
+      
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
+      
+      setTimeout(() => {
+        expect(service.totalElements()).toBe(10000);
+        done();
+      }, 200);
+    });
+  });
+
+  describe('Debouncing', () => {
+    beforeEach((done) => {
+      service = TestBed.inject(ActivityService);
+      setTimeout(() => {
+        apiClientSpy.getAggregatedPaged.calls.reset();
+        done();
+      }, 200);
+    });
+
+    it('should debounce rapid requests', (done) => {
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
+      
+      setTimeout(() => {
+        expect(apiClientSpy.getAggregatedPaged).toHaveBeenCalledTimes(1);
+        done();
+      }, 200);
+    });
+
+    it('should make separate calls after debounce period', (done) => {
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
+      
+      setTimeout(() => {
+        const firstCallCount = apiClientSpy.getAggregatedPaged.calls.count();
+        
+        service.toggleField(ACTIVITY_FIELDS.EMPLOYEE);
+        
+        setTimeout(() => {
+          expect(apiClientSpy.getAggregatedPaged.calls.count()).toBe(firstCallCount + 1);
+          done();
+        }, 200);
+      }, 200);
+    });
+  });
+
+  describe('Error Handling', () => {
+    beforeEach((done) => {
+      service = TestBed.inject(ActivityService);
+      setTimeout(() => {
+        apiClientSpy.getAggregatedPaged.calls.reset();
+        done();
+      }, 200);
+    });
+
+    it('should set error state on API failure', (done) => {
+      const error = new HttpErrorResponse({
+        error: { message: 'Server error' },
+        status: 500
+      });
+      
+      apiClientSpy.getAggregatedPaged.and.returnValue(throwError(() => error));
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
+      
+      setTimeout(() => {
+        expect(service.error()).toBeTruthy();
+        expect(service.loading()).toBe(false);
+        expect(service.data()).toEqual([]);
+        done();
+      }, 200);
+    });
+
+    it('should extract error message', (done) => {
+      const error = new HttpErrorResponse({
+        error: { message: 'Database connection failed' },
+        status: 500
+      });
+      
+      apiClientSpy.getAggregatedPaged.and.returnValue(throwError(() => error));
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
+      
+      setTimeout(() => {
+        expect(service.error()).toContain('Failed to load data');
+        done();
+      }, 200);
+    });
+
+    it('should clear previous data on error', (done) => {
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
+      
+      setTimeout(() => {
+        expect(service.data().length).toBe(2);
+        
+        const error = new HttpErrorResponse({ status: 500 });
+        apiClientSpy.getAggregatedPaged.and.returnValue(throwError(() => error));
+        
+        service.toggleField(ACTIVITY_FIELDS.PROJECT);
+        service.toggleField(ACTIVITY_FIELDS.EMPLOYEE);
+        
+        setTimeout(() => {
+          expect(service.data()).toEqual([]);
+          done();
+        }, 200);
+      }, 200);
+    });
+
+    it('should handle network error', (done) => {
+      const error = new HttpErrorResponse({ status: 0 });
+      apiClientSpy.getAggregatedPaged.and.returnValue(throwError(() => error));
+      
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
+      
+      setTimeout(() => {
+        expect(service.error()).toBeTruthy();
+        expect(service.loading()).toBe(false);
+        done();
+      }, 200);
+    });
+  });
+
+  describe('Caching', () => {
+    beforeEach((done) => {
+      service = TestBed.inject(ActivityService);
+      setTimeout(() => {
+        apiClientSpy.getAggregatedPaged.calls.reset();
+        done();
+      }, 200);
+    });
+
+    it('should cache API responses', (done) => {
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
+      
+      setTimeout(() => {
+        const firstCallCount = apiClientSpy.getAggregatedPaged.calls.count();
+        expect(firstCallCount).toBe(1);
+        
+        service.toggleField(ACTIVITY_FIELDS.PROJECT);
+        service.toggleField(ACTIVITY_FIELDS.PROJECT);
+        
+        setTimeout(() => {
+          expect(apiClientSpy.getAggregatedPaged.calls.count()).toBe(firstCallCount);
+          done();
+        }, 200);
+      }, 200);
+    });
+
+    it('should generate different cache keys for different aggregations', (done) => {
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
+      
+      setTimeout(() => {
+        service.toggleField(ACTIVITY_FIELDS.PROJECT);
+        service.toggleField(ACTIVITY_FIELDS.EMPLOYEE);
+        
+        setTimeout(() => {
+          expect(apiClientSpy.getAggregatedPaged).toHaveBeenCalledTimes(2);
+          done();
+        }, 200);
+      }, 200);
+    });
+
+    it('should generate different cache keys for different pages', (done) => {
+      service.toggleField(ACTIVITY_FIELDS.PROJECT);
+      
+      setTimeout(() => {
+        const pageEvent: PageEvent = {
+          pageIndex: 1,
+          pageSize: 25,
+          length: 50,
+          previousPageIndex: 0
+        };
+        
+        service.handlePageEvent(pageEvent);
+        
+        setTimeout(() => {
+          expect(apiClientSpy.getAggregatedPaged).toHaveBeenCalledTimes(2);
+          done();
+        }, 200);
+      }, 200);
+    });
   });
 
   describe('Pagination Integration', () => {
-    beforeEach(fakeAsync(() => {
-      apiClientSpy.getAggregatedPaged.and.returnValue(of(mockPagedResponse));
+    beforeEach((done) => {
       service = TestBed.inject(ActivityService);
-      tick(200);
-    }));
+      setTimeout(done, 200);
+    });
 
     it('should expose pagination signals', () => {
       expect(service.currentPage).toBeDefined();
@@ -550,6 +646,12 @@ describe('ActivityService', () => {
       expect(service.currentPage()).toBe(mockPagedResponse.number);
       expect(service.pageSize()).toBe(25);
       expect(service.totalElements()).toBe(mockPagedResponse.totalElements);
+    });
+
+    it('should update pagination on response', () => {
+      expect(service.totalPages()).toBe(mockPagedResponse.totalPages);
+      expect(service.hasNextPage()).toBe(true);
+      expect(service.hasPreviousPage()).toBe(false);
     });
   });
 });

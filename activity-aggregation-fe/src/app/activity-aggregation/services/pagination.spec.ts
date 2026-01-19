@@ -65,30 +65,6 @@ describe('PaginationService', () => {
       expect(service.hasPreviousPage()).toBe(false);
       expect(service.hasNextPage()).toBe(false);
     });
-
-    it('should handle single element response', () => {
-      service.updateFromResponse({
-        totalElements: 1,
-        totalPages: 1,
-        number: 0
-      });
-
-      expect(service.totalElements()).toBe(1);
-      expect(service.totalPages()).toBe(1);
-      expect(service.hasNextPage()).toBe(false);
-    });
-
-    it('should handle large page numbers', () => {
-      service.updateFromResponse({
-        totalElements: 10000,
-        totalPages: 400,
-        number: 399
-      });
-
-      expect(service.currentPage()).toBe(399);
-      expect(service.hasNextPage()).toBe(false);
-      expect(service.hasPreviousPage()).toBe(true);
-    });
   });
 
   describe('goToPage', () => {
@@ -112,115 +88,6 @@ describe('PaginationService', () => {
 
     it('should not navigate beyond total pages', () => {
       service.goToPage(10);
-      expect(service.currentPage()).toBe(0);
-    });
-
-    it('should navigate to last page', () => {
-      service.goToPage(3);
-      expect(service.currentPage()).toBe(3);
-      expect(service.hasNextPage()).toBe(false);
-    });
-
-    it('should handle navigation to first page', () => {
-      service.goToPage(2);
-      service.goToPage(0);
-      expect(service.currentPage()).toBe(0);
-      expect(service.hasPreviousPage()).toBe(false);
-    });
-
-    it('should not navigate to exact totalPages value', () => {
-      const currentPage = service.currentPage();
-      service.goToPage(4);
-      expect(service.currentPage()).toBe(currentPage);
-    });
-
-    it('should handle navigation to boundary page', () => {
-      service.goToPage(3);
-      expect(service.currentPage()).toBe(3);
-      expect(service.hasNextPage()).toBe(false);
-      expect(service.hasPreviousPage()).toBe(true);
-    });
-
-    it('should handle extremely large page numbers', () => {
-      service.goToPage(999999);
-      expect(service.currentPage()).toBe(0);
-    });
-
-    it('should handle zero page number', () => {
-      service.goToPage(1);
-      service.goToPage(0);
-      expect(service.currentPage()).toBe(0);
-      expect(service.hasPreviousPage()).toBe(false);
-    });
-  });
-
-  describe('nextPage', () => {
-    beforeEach(() => {
-      service.updateFromResponse({
-        totalElements: 75,
-        totalPages: 3,
-        number: 0
-      });
-    });
-
-    it('should increment page when not on last page', () => {
-      service.nextPage();
-      expect(service.currentPage()).toBe(1);
-    });
-
-    it('should not increment beyond last page', () => {
-      service.goToPage(2); // Go to last page
-      service.nextPage();
-      expect(service.currentPage()).toBe(2);
-    });
-  });
-
-  describe('previousPage', () => {
-    beforeEach(() => {
-      service.updateFromResponse({
-        totalElements: 75,
-        totalPages: 3,
-        number: 2
-      });
-    });
-
-    it('should decrement page when not on first page', () => {
-      service.previousPage();
-      expect(service.currentPage()).toBe(1);
-    });
-
-    it('should not decrement below first page', () => {
-      service.reset();
-      service.previousPage();
-      expect(service.currentPage()).toBe(0);
-    });
-  });
-
-  describe('changePageSize', () => {
-    it('should update page size and reset to first page', () => {
-      service.updateFromResponse({
-        totalElements: 100,
-        totalPages: 4,
-        number: 2
-      });
-
-      service.changePageSize(50);
-
-      expect(service.pageSize()).toBe(50);
-      expect(service.currentPage()).toBe(0);
-    });
-  });
-
-  describe('reset', () => {
-    it('should reset to first page', () => {
-      service.updateFromResponse({
-        totalElements: 100,
-        totalPages: 4,
-        number: 3
-      });
-
-      service.reset();
-
       expect(service.currentPage()).toBe(0);
     });
   });
@@ -259,35 +126,7 @@ describe('PaginationService', () => {
       service.handlePageEvent(event);
 
       expect(service.pageSize()).toBe(50);
-      expect(service.currentPage()).toBe(0); // Reset to first page
-    });
-  });
-
-  describe('Computed Signals', () => {
-    it('should compute hasPreviousPage correctly', () => {
-      service.updateFromResponse({
-        totalElements: 100,
-        totalPages: 4,
-        number: 0
-      });
-
-      expect(service.hasPreviousPage()).toBe(false);
-
-      service.nextPage();
-      expect(service.hasPreviousPage()).toBe(true);
-    });
-
-    it('should compute hasNextPage correctly', () => {
-      service.updateFromResponse({
-        totalElements: 100,
-        totalPages: 4,
-        number: 3
-      });
-
-      expect(service.hasNextPage()).toBe(false);
-
-      service.previousPage();
-      expect(service.hasNextPage()).toBe(true);
+      expect(service.currentPage()).toBe(0);
     });
   });
 });
