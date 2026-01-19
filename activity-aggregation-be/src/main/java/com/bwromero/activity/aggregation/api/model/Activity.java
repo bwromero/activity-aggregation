@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.time.ZonedDateTime;
 
-// ... existing code ...
 @Entity
 @Table(name = "activity", indexes = {
         @Index(name = "idx_activity_agg", columnList = "project_id, employee_id, date")
