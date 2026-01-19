@@ -27,11 +27,15 @@ public class DataSeedService {
     private final EmployeeRepository empRepo;
     private final EntityManager entityManager;
 
-    @Transactional
-    public void resetAndSeedDatabase(int totalRows, int batchSize, boolean useDemoData) {
-        log.info("Cleaning database...");
-        entityManager.createNativeQuery("TRUNCATE TABLE activity, project, employee RESTART IDENTITY CASCADE").executeUpdate();
+    public boolean isDatabaseEmpty() {
+        return actRepo.count() == 0;
+    }
 
+    @Transactional
+    public void seedDatabase(int totalRows, int batchSize, boolean useDemoData) {
+        // We remove the TRUNCATE command from here so it doesn't 
+        // accidentally wipe data in production.
+        
         if (useDemoData) {
             seedHumanDemoData();
         } else {
